@@ -59,6 +59,7 @@ DB_NAME=portal_estudiantil
 JWT_SECRET=super_secret_jwt_key_2026
 PORT=3001
 NODE_ENV=production
+DEMO_MODE=true
 EOF
 
 cp .env server/.env

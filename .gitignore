@@ -9,6 +9,7 @@ lerna-debug.log*
 
 # Dependencies
 node_modules
+server/node_modules
 .pnp
 .pnp.js
 
@@ -27,6 +28,15 @@ build
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Credenciales y llaves SSH
+.ssh_keys/
+CONEXION_A_BASE_DE_DATOS.md
+
+# Scripts de debug/deploy locales
+*.ps1
+debug_*.js
+debug_*.cjs
 
 # Editor
 .vscode/*

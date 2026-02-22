@@ -42,7 +42,12 @@
       "Bash(\"/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe\" -Command \"\nWrite-Host ''=== DOCENTES ==='' \n\\(Invoke-RestMethod -Uri ''http://localhost:3001/api/docentes''\\).data | ForEach-Object { Write-Host $_nombre_completo }\n\nWrite-Host ''=== ESTADISTICAS GENERAL ===''\n$stats = \\(Invoke-RestMethod -Uri ''http://localhost:3001/api/estadisticas/general''\\).data\nWrite-Host \\(''Promedio: '' + $stats.promedio + '' | Alumnos: '' + $stats.alumnos + '' | Aprobacion: '' + $stats.aprobacion + ''%''\\)\n\nWrite-Host ''=== NOTAS PUPILO 1000 ===''\n$notas = \\(Invoke-RestMethod -Uri ''http://localhost:3001/api/apoderado/pupilo/1000/notas''\\).data\nWrite-Host \\(''Total notas: '' + $notas.Count\\)\n\nWrite-Host ''=== COMUNICADOS ===''\n$com = \\(Invoke-RestMethod -Uri ''http://localhost:3001/api/apoderado/pupilo/1000/comunicados''\\).data\nWrite-Host \\(''Total comunicados: '' + $com.Count\\)\n\nWrite-Host ''=== PROGRESO PUPILO ===''\n$prog = \\(Invoke-RestMethod -Uri ''http://localhost:3001/api/apoderado/pupilo/1000/progreso''\\).data\nWrite-Host \\(''Promedio: '' + $prog.estadisticas.promedio + '' | Asistencia: '' + $prog.asistencia.porcentaje + ''%''\\)\n\")",
       "Bash(\"/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe\" -Command \"\\(Invoke-RestMethod -Uri ''http://localhost:3001/api/docentes''\\).data.nombre_completo\")",
       "Bash(\"/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe\" -Command \"\\(Invoke-RestMethod -Uri ''http://localhost:3001/api/estadisticas/general''\\).data | ConvertTo-Json -Depth 2\")",
-      "Bash(\"/mnt/c/Windows/System32/cmd.exe\" /c \"netstat -ano | findstr :5173 | findstr LISTENING\")"
+      "Bash(\"/mnt/c/Windows/System32/cmd.exe\" /c \"netstat -ano | findstr :5173 | findstr LISTENING\")",
+      "Bash(\"/mnt/c/Program Files/nodejs/node.exe\" -e \":*)",
+      "Bash(export PATH=\"/mnt/c/Program Files/nodejs:$PATH\")",
+      "Bash(node.exe:*)",
+      "Bash(tee:*)",
+      "Bash(ssh -i /tmp/id_rsa_vps -p 25404 -o StrictHostKeyChecking=no root@45.236.130.25 \"echo ''=== SERVIDOR OK ==='' && uptime && echo '''' && echo ''=== ESTADO PM2 ==='' && pm2 list 2>/dev/null || echo ''pm2 no encontrado'' && echo '''' && echo ''=== MYSQL ==='' && mysql -u root -p''9Il2cmw4PgSQ10V'' portal_estudiantil -e ''SELECT COUNT\\(*\\) as total_tablas FROM information_schema.tables WHERE table_schema=\"\"portal_estudiantil\"\";''\")"
     ]
   }
 }

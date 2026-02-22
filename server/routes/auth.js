@@ -32,7 +32,7 @@ router.post('/login', async (req, res) => {
     // --- MOCK DEMO LOGIN ---
     if (password === '123456' && email && email.endsWith('@demo.com')) {
         let userMock = null;
-        if (email === 'admin@demo.com' && tipo === 'admin') userMock = mockData.users.admin;
+        if (email === 'admin@demo.com' && (tipo === 'admin' || tipo === 'administrador')) userMock = mockData.users.admin;
         else if (email === 'docente@demo.com' && tipo === 'docente') userMock = mockData.users.docente;
         else if (email === 'apoderado@demo.com' && tipo === 'apoderado') userMock = mockData.users.apoderado;
 
