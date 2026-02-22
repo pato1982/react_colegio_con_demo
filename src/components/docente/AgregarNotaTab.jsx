@@ -164,7 +164,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
   useEffect(() => {
     const cargarCursos = async () => {
       try {
-        const response = await apiFetch(`/docente/${docenteId}/cursos`);
+        const response = await apiFetch(`/docente/${docenteId}/cursos?establecimiento_id=${establecimientoId}`);
         const data = await response.json();
         if (data.success) {
           setCursos(ordenarCursos(data.data || []));
@@ -206,7 +206,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
       }
       setCargandoAsignaturas(true);
       try {
-        const response = await apiFetch(`/docente/${docenteId}/asignaturas-por-curso/${cursoSeleccionado}`);
+        const response = await apiFetch(`/docente/${docenteId}/asignaturas-por-curso/${cursoSeleccionado}?establecimiento_id=${establecimientoId}`);
         const data = await response.json();
         if (data.success) {
           setAsignaturas(data.data || []);
@@ -249,7 +249,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
   const cargarNotasRecientes = async (cursoId = null, alumnoId = null) => {
     setCargandoNotas(true);
     try {
-      let url = `/docente/${docenteId}/notas/buscar?`;
+      let url = `/docente/${docenteId}/notas/buscar?establecimiento_id=${establecimientoId}&`;
       if (cursoId) url += `curso_id=${cursoId}&`;
       if (alumnoId) url += `alumno_id=${alumnoId}&`;
       const response = await apiFetch(url);

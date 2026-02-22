@@ -129,7 +129,7 @@ function AsistenciaTab({ docenteId, establecimientoId, usuarioId }) {
   useEffect(() => {
     const cargarCursos = async () => {
       try {
-        const response = await apiFetch(`/docente/${docenteId}/cursos`);
+        const response = await apiFetch(`/docente/${docenteId}/cursos?establecimiento_id=${establecimientoId}`);
         const data = await response.json();
         if (data.success) {
           setCursos(ordenarCursos(data.data || []));
