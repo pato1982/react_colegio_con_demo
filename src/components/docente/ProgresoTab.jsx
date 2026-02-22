@@ -13,7 +13,7 @@ import {
   SelectNativo
 } from './shared';
 import { ordenarCursos } from './shared/utils';
-import config from '../../config/env';
+import { apiFetch } from '../../utils/api';
 
 function ProgresoTab({ docenteId, establecimientoId }) {
   const [cursos, setCursos] = useState([]);
@@ -50,8 +50,8 @@ function ProgresoTab({ docenteId, establecimientoId }) {
       }
       setCargandoCursos(true);
       try {
-        const response = await fetch(
-          `${config.apiBaseUrl}/docente/${docenteId}/cursos?establecimiento_id=${establecimientoId}`
+        const response = await apiFetch(
+          `/docente/${docenteId}/cursos?establecimiento_id=${establecimientoId}`
         );
         const data = await response.json();
         if (data.success) setCursos(ordenarCursos(data.data || []));
@@ -73,8 +73,8 @@ function ProgresoTab({ docenteId, establecimientoId }) {
         return;
       }
       try {
-        const response = await fetch(
-          `${config.apiBaseUrl}/docente/${docenteId}/asignaturas-por-curso/${cursoSeleccionado}?establecimiento_id=${establecimientoId}`
+        const response = await apiFetch(
+          `/docente/${docenteId}/asignaturas-por-curso/${cursoSeleccionado}?establecimiento_id=${establecimientoId}`
         );
         const data = await response.json();
         if (data.success) {
@@ -125,15 +125,15 @@ function ProgresoTab({ docenteId, establecimientoId }) {
     setCargandoEstadisticas(true);
 
     try {
-      let urlStats = `${config.apiBaseUrl}/docente/${docenteId}/progreso/estadisticas?establecimiento_id=${establecimientoId}&curso_id=${cursoSeleccionado}&asignatura_id=${asignaturaSeleccionada}`;
+      let urlStats = `/docente/${docenteId}/progreso/estadisticas?establecimiento_id=${establecimientoId}&curso_id=${cursoSeleccionado}&asignatura_id=${asignaturaSeleccionada}`;
       if (trimestreSeleccionado) urlStats += `&trimestre=${trimestreSeleccionado}`;
-      const resStats = await fetch(urlStats);
+      const resStats = await apiFetch(urlStats);
       const dataStats = await resStats.json();
 
       if (!dataStats.success) throw new Error(dataStats.error || 'Error en estadisticas');
 
-      const urlNotas = `${config.apiBaseUrl}/docente/${docenteId}/notas/por-asignatura?establecimiento_id=${establecimientoId}&curso_id=${cursoSeleccionado}&asignatura_id=${asignaturaSeleccionada}`;
-      const resNotas = await fetch(urlNotas);
+      const urlNotas = `/docente/${docenteId}/notas/por-asignatura?establecimiento_id=${establecimientoId}&curso_id=${cursoSeleccionado}&asignatura_id=${asignaturaSeleccionada}`;
+      const resNotas = await apiFetch(urlNotas);
       const dataNotas = await resNotas.json();
 
       if (dataStats.success) {

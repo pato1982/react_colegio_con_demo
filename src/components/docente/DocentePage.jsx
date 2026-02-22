@@ -5,7 +5,7 @@ import ModificarNotaTab from './ModificarNotaTab';
 import VerNotasTab from './VerNotasTab';
 import ProgresoTab from './ProgresoTab';
 import ChatDocenteV2 from '../ChatDocenteV2';
-import config from '../../config/env';
+import { apiFetch } from '../../utils/api';
 import '../../styles/apoderado_menu.css';
 
 function DocentePage({ onCambiarVista, usuarioDocente }) {
@@ -49,19 +49,24 @@ function DocentePage({ onCambiarVista, usuarioDocente }) {
     updateDate();
   }, []);
 
-  // Cargar establecimientos del docente (DEMO LOCAL)
+  // Cargar establecimientos del docente
   useEffect(() => {
-    const cargarEstablecimientos = () => {
-      // Datos simulados para modo local/demo
-      const dataDemo = [
-        { id: 1, nombre: 'Colegio Demo', comuna: 'Santiago' }
-      ];
-      setEstablecimientosDocente(dataDemo);
-      setEstablecimientoActual(dataDemo[0]);
-      setCargandoEstablecimientos(false);
+    const cargarEstablecimientos = async () => {
+      try {
+        const response = await apiFetch(`/docente/${docenteActual.id}/establecimientos`);
+        const data = await response.json();
+        if (data.success && data.data?.length > 0) {
+          setEstablecimientosDocente(data.data);
+          setEstablecimientoActual(data.data[0]);
+        }
+      } catch (error) {
+        console.error('Error cargando establecimientos:', error);
+      } finally {
+        setCargandoEstablecimientos(false);
+      }
     };
 
-    cargarEstablecimientos();
+    if (docenteActual.id) cargarEstablecimientos();
   }, [docenteActual.id]);
 
   // Cerrar dropdown al hacer click fuera

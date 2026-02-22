@@ -5,7 +5,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useResponsive, useDropdown } from '../../hooks';
 import { SelectNativo, SelectMovil, AutocompleteAlumno } from './shared';
 import { ordenarCursos } from './shared/utils';
-import config from '../../config/env';
+import { apiFetch } from '../../utils/api';
 
 // Registrar locale español
 registerLocale('es', es);
@@ -221,8 +221,8 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
       }
 
       try {
-        const response = await fetch(
-          `${config.apiBaseUrl}/docente/${docenteId}/cursos?establecimiento_id=${establecimientoId}`
+        const response = await apiFetch(
+          `/docente/${docenteId}/cursos?establecimiento_id=${establecimientoId}`
         );
         const data = await response.json();
         if (data.success) {
@@ -248,8 +248,8 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
 
       setCargandoAsignaturas(true);
       try {
-        const response = await fetch(
-          `${config.apiBaseUrl}/docente/${docenteId}/asignaturas-por-curso/${filtroCurso}?establecimiento_id=${establecimientoId}`
+        const response = await apiFetch(
+          `/docente/${docenteId}/asignaturas-por-curso/${filtroCurso}?establecimiento_id=${establecimientoId}`
         );
         const data = await response.json();
         if (data.success) {
@@ -275,7 +275,7 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
 
       setCargandoAlumnos(true);
       try {
-        const response = await fetch(`${config.apiBaseUrl}/curso/${filtroCurso}/alumnos`);
+        const response = await apiFetch(`/curso/${filtroCurso}/alumnos`);
         const data = await response.json();
         if (data.success) {
           setAlumnos(data.data);
@@ -300,12 +300,12 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
 
       setCargandoFechas(true);
       try {
-        let url = `${config.apiBaseUrl}/docente/${docenteId}/fechas-con-notas?establecimiento_id=${establecimientoId}&curso_id=${filtroCurso}`;
+        let url = `/docente/${docenteId}/fechas-con-notas?establecimiento_id=${establecimientoId}&curso_id=${filtroCurso}`;
 
         if (filtroAsignatura) url += `&asignatura_id=${filtroAsignatura}`;
         if (filtroAlumnoId) url += `&alumno_id=${filtroAlumnoId}`;
 
-        const response = await fetch(url);
+        const response = await apiFetch(url);
         const data = await response.json();
         if (data.success) {
           // Convertir strings a objetos Date y ajustar zona horaria
@@ -364,7 +364,7 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
 
     setBuscando(true);
     try {
-      let url = `${config.apiBaseUrl}/docente/${docenteId}/notas/buscar?establecimiento_id=${establecimientoId}&curso_id=${filtroCurso}`;
+      let url = `/docente/${docenteId}/notas/buscar?establecimiento_id=${establecimientoId}&curso_id=${filtroCurso}`;
 
       if (filtroAsignatura) url += `&asignatura_id=${filtroAsignatura}`;
       if (filtroAlumnoId) url += `&alumno_id=${filtroAlumnoId}`;
@@ -376,7 +376,7 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
         url += `&fecha=${fechaStr}`;
       }
 
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       const data = await response.json();
 
       if (data.success) {
@@ -418,9 +418,8 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
 
     setGuardando(true);
     try {
-      const response = await fetch(`${config.apiBaseUrl}/notas/${notaEditando.id}`, {
+      const response = await apiFetch(`/notas/${notaEditando.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nota: editPendiente ? null : parseFloat(editNota),
           trimestre: parseInt(editTrimestre),
@@ -451,7 +450,7 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
   const confirmarEliminar = async () => {
     setEliminando(true);
     try {
-      const response = await fetch(`${config.apiBaseUrl}/notas/${notaEliminar.id}`, {
+      const response = await apiFetch(`/notas/${notaEliminar.id}`, {
         method: 'DELETE'
       });
 

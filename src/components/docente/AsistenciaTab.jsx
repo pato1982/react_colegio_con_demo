@@ -3,7 +3,7 @@ import { useResponsive, useDropdown } from '../../hooks';
 import { SelectNativo, SelectMovil } from './shared';
 import { ordenarCursos } from './shared/utils';
 
-import config from '../../config/env';
+import { apiFetch } from '../../utils/api';
 // Demo import removed
 
 // Componente radio para asistencia
@@ -129,7 +129,7 @@ function AsistenciaTab({ docenteId, establecimientoId, usuarioId }) {
   useEffect(() => {
     const cargarCursos = async () => {
       try {
-        const response = await fetch(`${config.apiBaseUrl}/docente/${docenteId}/cursos`);
+        const response = await apiFetch(`/docente/${docenteId}/cursos`);
         const data = await response.json();
         if (data.success) {
           setCursos(ordenarCursos(data.data || []));
@@ -162,13 +162,13 @@ function AsistenciaTab({ docenteId, establecimientoId, usuarioId }) {
 
     try {
       // Cargar alumnos del curso
-      const respAlumnos = await fetch(`${config.apiBaseUrl}/curso/${cursoSeleccionado}/alumnos`);
+      const respAlumnos = await apiFetch(`/curso/${cursoSeleccionado}/alumnos`);
       const dataAlumnos = await respAlumnos.json();
       const listaAlumnos = dataAlumnos.success ? (dataAlumnos.data || []) : [];
       setAlumnos(listaAlumnos);
 
       // Verificar si ya existe asistencia para hoy
-      const respAsist = await fetch(`${config.apiBaseUrl}/asistencia/verificar/${cursoSeleccionado}/${fechaHoy}`);
+      const respAsist = await apiFetch(`/asistencia/verificar/${cursoSeleccionado}/${fechaHoy}`);
       const dataAsist = await respAsist.json();
 
       if (dataAsist.success && dataAsist.existe && dataAsist.data) {
@@ -232,14 +232,32 @@ function AsistenciaTab({ docenteId, establecimientoId, usuarioId }) {
 
     setGuardando(true);
 
-    setGuardando(true);
-    // Mock Save
-    setTimeout(() => {
-      alert('Asistencia guardada exitosamente (DEMO)');
-      setAsistenciaExistente(true);
-      setModoEdicion(false);
+    try {
+      const response = await apiFetch('/asistencia/registrar', {
+        method: 'POST',
+        body: JSON.stringify({
+          establecimiento_id: establecimientoId,
+          curso_id: parseInt(cursoSeleccionado),
+          fecha: fechaHoy,
+          asistencia,
+          registrado_por: usuarioId,
+          docente_id: docenteId
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Asistencia guardada exitosamente');
+        setAsistenciaExistente(true);
+        setModoEdicion(false);
+      } else {
+        alert(data.error || 'Error al guardar asistencia');
+      }
+    } catch (error) {
+      console.error('Error al guardar asistencia:', error);
+      alert('Error al guardar asistencia');
+    } finally {
       setGuardando(false);
-    }, 600);
+    }
   };
 
   const handleModificarAsistencia = () => {

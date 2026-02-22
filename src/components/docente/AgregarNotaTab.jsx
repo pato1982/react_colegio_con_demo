@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useResponsive, useDropdown } from '../../hooks';
 import { SelectNativo, SelectMovil, AutocompleteAlumno } from './shared';
 import { ordenarCursos } from './shared/utils';
-import config from '../../config/env';
+import { apiFetch } from '../../utils/api';
 // Demo data removed
 
 // Simple Error Boundary for this component
@@ -164,7 +164,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
   useEffect(() => {
     const cargarCursos = async () => {
       try {
-        const response = await fetch(`${config.apiBaseUrl}/docente/${docenteId}/cursos`);
+        const response = await apiFetch(`/docente/${docenteId}/cursos`);
         const data = await response.json();
         if (data.success) {
           setCursos(ordenarCursos(data.data || []));
@@ -182,12 +182,16 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
   // Cargar tipos de evaluación
   useEffect(() => {
     const cargarTiposEvaluacion = async () => {
-      // Mock Demo
-      setTiposEvaluacion([
-        { id: 1, nombre: 'Prueba Escrita' },
-        { id: 2, nombre: 'Trabajo Práctico' },
-        { id: 3, nombre: 'Interrogación' }
-      ]);
+      if (!establecimientoId) return;
+      try {
+        const response = await apiFetch(`/tipos-evaluacion?establecimiento_id=${establecimientoId}`);
+        const data = await response.json();
+        if (data.success) {
+          setTiposEvaluacion(data.data || []);
+        }
+      } catch (error) {
+        console.error('Error cargando tipos de evaluación:', error);
+      }
     };
 
     cargarTiposEvaluacion();
@@ -202,7 +206,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
       }
       setCargandoAsignaturas(true);
       try {
-        const response = await fetch(`${config.apiBaseUrl}/docente/${docenteId}/asignaturas-por-curso/${cursoSeleccionado}`);
+        const response = await apiFetch(`/docente/${docenteId}/asignaturas-por-curso/${cursoSeleccionado}`);
         const data = await response.json();
         if (data.success) {
           setAsignaturas(data.data || []);
@@ -227,7 +231,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
 
       setCargandoAlumnos(true);
       try {
-        const response = await fetch(`${config.apiBaseUrl}/curso/${cursoSeleccionado}/alumnos`);
+        const response = await apiFetch(`/curso/${cursoSeleccionado}/alumnos`);
         const data = await response.json();
         if (data.success) {
           setAlumnos(data.data || []);
@@ -245,10 +249,10 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
   const cargarNotasRecientes = async (cursoId = null, alumnoId = null) => {
     setCargandoNotas(true);
     try {
-      let url = `${config.apiBaseUrl}/docente/${docenteId}/notas/buscar?`;
+      let url = `/docente/${docenteId}/notas/buscar?`;
       if (cursoId) url += `curso_id=${cursoId}&`;
       if (alumnoId) url += `alumno_id=${alumnoId}&`;
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       const data = await response.json();
       if (data.success) {
         setNotasRecientes(data.data || []);
@@ -276,7 +280,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
       }
 
       try {
-        const response = await fetch(`${config.apiBaseUrl}/curso/${filtroCurso}/alumnos`);
+        const response = await apiFetch(`/curso/${filtroCurso}/alumnos`);
         const data = await response.json();
         if (data.success) {
           setAlumnosFiltro(data.data || []);
@@ -346,16 +350,36 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
     setGuardando(true);
 
     try {
-      // Mock Save
-      setTimeout(() => {
-        alert('Nota registrada exitosamente (DEMO)');
+      const response = await apiFetch('/notas/registrar', {
+        method: 'POST',
+        body: JSON.stringify({
+          establecimiento_id: establecimientoId,
+          alumno_id: parseInt(alumnoSeleccionado),
+          asignatura_id: parseInt(asignaturaSeleccionada),
+          curso_id: parseInt(cursoSeleccionado),
+          docente_id: docenteId,
+          registrado_por: usuarioId,
+          tipo_evaluacion_id: tipoEvaluacion ? parseInt(tipoEvaluacion) : null,
+          trimestre: parseInt(trimestre),
+          nota: notaPendiente ? null : parseFloat(nota),
+          es_pendiente: notaPendiente,
+          fecha_evaluacion: fecha,
+          descripcion: '',
+          comentario: comentario || null
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Nota registrada exitosamente');
         limpiarFormulario();
         cargarNotasRecientes(filtroCurso || null, filtroAlumno || null);
-        setGuardando(false);
-      }, 600);
+      } else {
+        alert(data.error || 'Error al registrar nota');
+      }
     } catch (error) {
       console.error('Error al registrar nota:', error);
       alert('Error al registrar nota');
+    } finally {
       setGuardando(false);
     }
   };

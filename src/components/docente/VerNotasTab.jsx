@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useResponsive, useDropdown } from '../../hooks';
 import { SelectNativo, SelectMovil, AutocompleteAlumno } from './shared';
 import { ordenarCursos } from './shared/utils';
-import config from '../../config/env';
+import { apiFetch } from '../../utils/api';
 
 // Simple Error Boundary
 class ComponentErrorBoundary extends React.Component {
@@ -112,8 +112,8 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
       }
 
       try {
-        const response = await fetch(
-          `${config.apiBaseUrl}/docente/${docenteId}/cursos?establecimiento_id=${establecimientoId}`
+        const response = await apiFetch(
+          `/docente/${docenteId}/cursos?establecimiento_id=${establecimientoId}`
         );
         const data = await response.json();
         if (data.success) {
@@ -139,8 +139,8 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
 
       setCargandoAsignaturas(true);
       try {
-        const response = await fetch(
-          `${config.apiBaseUrl}/docente/${docenteId}/asignaturas-por-curso/${cursoSeleccionado}?establecimiento_id=${establecimientoId}`
+        const response = await apiFetch(
+          `/docente/${docenteId}/asignaturas-por-curso/${cursoSeleccionado}?establecimiento_id=${establecimientoId}`
         );
         const data = await response.json();
         if (data.success) {
@@ -166,7 +166,7 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
 
       setCargandoAlumnos(true);
       try {
-        const response = await fetch(`${config.apiBaseUrl}/curso/${cursoSeleccionado}/alumnos`);
+        const response = await apiFetch(`/curso/${cursoSeleccionado}/alumnos`);
         const data = await response.json();
         if (data.success) {
           setAlumnos(data.data || []);
@@ -217,13 +217,13 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
 
     setConsultando(true);
     try {
-      let url = `${config.apiBaseUrl}/docente/${docenteId}/notas/por-asignatura?establecimiento_id=${establecimientoId}&curso_id=${cursoSeleccionado}&asignatura_id=${asignaturaSeleccionada}`;
+      let url = `/docente/${docenteId}/notas/por-asignatura?establecimiento_id=${establecimientoId}&curso_id=${cursoSeleccionado}&asignatura_id=${asignaturaSeleccionada}`;
 
       if (filtroAlumnoId) {
         url += `&alumno_id=${filtroAlumnoId}`;
       }
 
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       const data = await response.json();
 
       if (data.success) {
