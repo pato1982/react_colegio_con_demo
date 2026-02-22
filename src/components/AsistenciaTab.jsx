@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useDropdown } from '../hooks';
 import { useMensaje } from '../contexts';
-import config from '../config/env';
-// Demo Import Removed
+import { apiFetch } from '../utils/api';
 
 function AsistenciaTab() {
   const { mostrarMensaje } = useMensaje();
@@ -151,7 +150,7 @@ function AsistenciaTab() {
 
   const cargarCursos = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/cursos`);
+      const response = await apiFetch(`/cursos`);
       const data = await response.json();
       if (data.success) {
         setCursosDB(data.data || []);
@@ -162,77 +161,82 @@ function AsistenciaTab() {
   };
 
   const cargarAlumnosDelCurso = async (cursoId) => {
-    // Mock alumnos
-    const alumnos = Array.from({ length: 25 }, (_, i) => ({
-      id: i + 1,
-      nombre_completo: `Alumno Estudiante ${i + 1} del Curso ${cursoId}`,
-      rut: `22.333.${String(i).padStart(3, '0')}-K`
-    }));
-    setAlumnosDelCurso(alumnos);
+    try {
+      const response = await apiFetch(`/alumnos?curso_id=${cursoId}`);
+      const data = await response.json();
+      if (data.success) {
+        setAlumnosDelCurso(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error cargando alumnos del curso:', error);
+    }
   };
 
   const cargarAsistencia = async (cursoId, mes) => {
     setCargando(true);
-    // Mock Asistencia
-    setTimeout(() => {
-      const mockAsistencia = {};
-      // Generar asistencia aleatoria para los primeros 25 IDs
-      for (let i = 1; i <= 25; i++) {
-        mockAsistencia[i] = {};
-        for (let d = 1; d <= 31; d++) {
-          if (Math.random() > 0.8) {
-            const estados = ['ausente', 'atrasado', 'justificado'];
-            mockAsistencia[i][d] = {
-              id: `${i}-${d}`,
-              estado: estados[Math.floor(Math.random() * estados.length)],
-              observacion: ''
-            };
-          } else {
-            mockAsistencia[i][d] = {
-              id: `${i}-${d}`,
-              estado: 'presente',
-              observacion: ''
-            };
-          }
-        }
+    try {
+      const response = await apiFetch(`/asistencia?curso_id=${cursoId}&mes=${mes}&anio=${anioActual}`);
+      const data = await response.json();
+      if (data.success) {
+        setAsistenciaData(data.data || {});
       }
-      setAsistenciaData(mockAsistencia);
+    } catch (error) {
+      console.error('Error cargando asistencia:', error);
+    } finally {
       setCargando(false);
-    }, 300);
+    }
   };
 
   const cargarEstadisticas = async (cursoId) => {
-    // Mock estadisticas
-    setEstadisticas({
-      total: 1250,
-      presente: 1100,
-      ausente: 100,
-      justificado: 30,
-      atrasado: 20,
-      porcentaje_asistencia: '88.5'
-    });
+    try {
+      let url = `/asistencia/estadisticas?modo=anual&anio=${anioActual}`;
+      if (cursoId) url += `&curso_id=${cursoId}`;
+      const response = await apiFetch(url);
+      const data = await response.json();
+      if (data.success) {
+        setEstadisticas(data.data || {
+          total: 0, presente: 0, ausente: 0, justificado: 0, atrasado: 0, porcentaje_asistencia: '0.0'
+        });
+      }
+    } catch (error) {
+      console.error('Error cargando estadísticas:', error);
+    }
   };
 
   const cargarAlumnosBajoUmbral = async (cursoId) => {
-    // Mock bajo umbral
-    setAlumnosBajoUmbral([
-      { alumno_id: 5, nombre_completo: 'Vicente Muñoz Soto', nombre_curso: '1° Medio A', porcentaje: '82.5' },
-      { alumno_id: 12, nombre_completo: 'Catalina Rojas Fuentes', nombre_curso: '2° Medio B', porcentaje: '75.0' },
-      { alumno_id: 18, nombre_completo: 'Martín González Vera', nombre_curso: '1° Medio A', porcentaje: '80.2' }
-    ]);
+    try {
+      let url = `/asistencia/alumnos-bajo-umbral?anio=${anioActual}`;
+      if (cursoId) url += `&curso_id=${cursoId}`;
+      const response = await apiFetch(url);
+      const data = await response.json();
+      if (data.success) {
+        setAlumnosBajoUmbral(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error cargando alumnos bajo umbral:', error);
+    }
   };
 
   const cargarDatosMensuales = async (cursoId, mes) => {
-    // Mock datos mensuales
-    setStatsMensuales({
-      total: 450,
-      presente: 420,
-      ausente: 20,
-      justificado: 5,
-      atrasado: 5,
-      porcentaje_asistencia: '93.3'
-    });
-    setRiesgoMensual([]);
+    try {
+      // Stats mensuales del curso
+      const statsRes = await apiFetch(`/asistencia/estadisticas?curso_id=${cursoId}&mes=${mes}&anio=${anioActual}`);
+      const statsData = await statsRes.json();
+      if (statsData.success) {
+        setStatsMensuales(statsData.data || {
+          total: 0, presente: 0, ausente: 0, justificado: 0, atrasado: 0, porcentaje_asistencia: '0.0'
+        });
+      }
+
+      // Alumnos en riesgo mensual del curso
+      const riesgoRes = await apiFetch(`/asistencia/alumnos-bajo-umbral?curso_id=${cursoId}&mes=${mes}&anio=${anioActual}`);
+      const riesgoData = await riesgoRes.json();
+      if (riesgoData.success) {
+        setRiesgoMensual(riesgoData.data || []);
+      }
+    } catch (error) {
+      console.error('Error cargando datos mensuales:', error);
+    }
   };
 
   // Generar días del mes seleccionado (excluyendo solo fines de semana)
@@ -335,25 +339,50 @@ function AsistenciaTab() {
 
     setPopup(prev => ({ ...prev, guardando: true }));
 
-    // Mock Guardar
-    setTimeout(async () => {
-      mostrarMensaje('Exito', 'Asistencia registrada correctamente (DEMO)', 'success');
+    try {
+      // Construir fecha YYYY-MM-DD
+      const mesReal = mesSeleccionado + 1; // JS 0-indexed → SQL 1-indexed
+      const fechaStr = `${anioActual}-${String(mesReal).padStart(2, '0')}-${String(popup.diaInfo.dia).padStart(2, '0')}`;
 
-      // Actualizar localmente el estado para reflejar el cambio en la UI
-      setAsistenciaData(prev => {
-        const newData = { ...prev };
-        if (!newData[popup.alumno.id]) newData[popup.alumno.id] = {};
-
-        newData[popup.alumno.id][popup.diaInfo.dia] = {
-          id: popup.registroId || `new-${Date.now()}`,
+      const response = await apiFetch(`/asistencia`, {
+        method: 'POST',
+        body: JSON.stringify({
+          alumno_id: popup.alumno.id,
+          curso_id: filtros.cursoId,
+          fecha: fechaStr,
           estado: popup.estadoNuevo,
-          observacion: popup.observacion
-        };
-        return newData;
+          observacion: popup.observacion || null,
+          establecimiento_id: 1
+        })
       });
 
-      cerrarPopup();
-    }, 500);
+      const data = await response.json();
+
+      if (data.success) {
+        mostrarMensaje('Exito', 'Asistencia registrada correctamente', 'success');
+
+        // Actualizar localmente para reflejar el cambio en la UI
+        setAsistenciaData(prev => {
+          const newData = { ...prev };
+          if (!newData[popup.alumno.id]) newData[popup.alumno.id] = {};
+          newData[popup.alumno.id][popup.diaInfo.dia] = {
+            id: data.id || popup.registroId,
+            estado: popup.estadoNuevo,
+            observacion: popup.observacion
+          };
+          return newData;
+        });
+
+        cerrarPopup();
+      } else {
+        mostrarMensaje('Error', data.error || 'Error al guardar asistencia', 'error');
+        setPopup(prev => ({ ...prev, guardando: false }));
+      }
+    } catch (error) {
+      console.error('Error guardando asistencia:', error);
+      mostrarMensaje('Error', 'Error de conexión al guardar asistencia', 'error');
+      setPopup(prev => ({ ...prev, guardando: false }));
+    }
   };
 
   // Renderizar icono de asistencia

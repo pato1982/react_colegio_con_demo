@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useMensaje } from '../contexts';
 import { useDropdown } from '../hooks';
-import config from '../config/env';
+import { apiFetch } from '../utils/api';
 
 function NotasPorCursoTab() {
   const { mostrarMensaje } = useMensaje();
@@ -70,7 +70,7 @@ function NotasPorCursoTab() {
 
   const cargarCursos = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/cursos`);
+      const response = await apiFetch(`/cursos`);
       const data = await response.json();
       if (data.success) {
         setCursosDB(data.data || []);
@@ -82,7 +82,7 @@ function NotasPorCursoTab() {
 
   const cargarAsignaturasPorCurso = async (cursoId) => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/asignaturas/por-curso/${cursoId}`);
+      const response = await apiFetch(`/asignaturas/por-curso/${cursoId}`);
       const data = await response.json();
       if (data.success) {
         setAsignaturasDB(data.data || []);
@@ -102,7 +102,7 @@ function NotasPorCursoTab() {
         trimestre: filtros.trimestre
       });
 
-      const response = await fetch(`${config.apiBaseUrl}/notas/por-curso?${params}`);
+      const response = await apiFetch(`/notas/por-curso?${params}`);
       const data = await response.json();
 
       if (data.success) {

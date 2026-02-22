@@ -98,6 +98,7 @@ app.get('/api/establecimientos', async (req, res) => {
 // GET /api/alumnos - Obtener todos los alumnos con sus cursos (USANDO MATRIC ULAS)
 app.get('/api/alumnos', async (req, res) => {
     const { curso_id } = req.query;
+    const anioActual = new Date().getFullYear();
 
     try {
         let query = `
@@ -112,12 +113,12 @@ app.get('/api/alumnos', async (req, res) => {
         c.nombre AS curso_nombre,
         c.id AS curso_id
       FROM tb_alumnos a
-      LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = 2026
+      LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = ?
       LEFT JOIN tb_cursos c ON m.curso_asignado_id = c.id
       WHERE a.activo = 1
     `;
 
-        const params = [];
+        const params = [anioActual];
 
         // Filtrar por curso si se especifica
         if (curso_id) {
@@ -138,9 +139,10 @@ app.get('/api/alumnos', async (req, res) => {
 
 // GET /api/alumnos/por-curso - Obtener alumnos agrupados por curso (USANDO MATRICULAS)
 app.get('/api/alumnos/por-curso', async (req, res) => {
+    const anioActual = new Date().getFullYear();
     try {
         const [rows] = await pool.query(`
-      SELECT 
+      SELECT
         a.id,
         a.rut,
         a.nombres,
@@ -151,11 +153,11 @@ app.get('/api/alumnos/por-curso', async (req, res) => {
         c.nombre AS curso_nombre,
         c.id AS curso_id
       FROM tb_alumnos a
-      LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = 2026
+      LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = ?
       LEFT JOIN tb_cursos c ON m.curso_asignado_id = c.id
       WHERE a.activo = 1
       ORDER BY c.nombre, a.apellidos, a.nombres
-    `);
+    `, [anioActual]);
 
         // Agrupar por curso
         const alumnosPorCurso = {};
@@ -178,43 +180,47 @@ app.get('/api/alumnos/por-curso', async (req, res) => {
 app.get('/api/alumnos/:id/detalle', async (req, res) => {
     try {
         const { id } = req.params;
-        // 1. Datos Alumno y Matricula Actual
+        const anioActual = new Date().getFullYear();
+        // 1. Datos Alumno + Matricula Actual + Curso
         const [alumnoRows] = await pool.query(`
-            SELECT 
-                a.*, 
+            SELECT
+                a.*,
                 m.id as matricula_id,
                 m.anio_academico,
                 m.estado as estado_matricula,
                 m.tipo_matricula,
-                m.alergias,
-                m.enfermedades_cronicas,
-                m.tiene_nee,
-                m.detalle_nee,
-                m.contacto_emergencia_nombre,
-                m.contacto_emergencia_telefono,
                 c.id as curso_id,
                 c.nombre as curso_nombre
             FROM tb_alumnos a
-            LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = 2026
+            LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = ?
             LEFT JOIN tb_cursos c ON m.curso_asignado_id = c.id
             WHERE a.id = ?
-        `, [id]);
+        `, [anioActual, id]);
 
         if (alumnoRows.length === 0) return res.status(404).json({ success: false, error: 'Alumno no encontrado' });
         const alumno = alumnoRows[0];
 
-        // 2. Datos Apoderado (Desde la matricula, que es la fuente de verdad de la relacion actual)
+        // 2. Datos Apoderado (via tb_apoderado_alumno o via tb_matriculas)
         let apoderado = null;
-        if (alumno.matricula_id) {
-            const [apodRows] = await pool.query(`
-                SELECT 
-                    ap.*,
-                    m.parentezco
+        // Primero intentar desde tb_apoderado_alumno (relación directa)
+        const [apodRows] = await pool.query(`
+            SELECT ap.*, aa.parentesco as parentezco
+            FROM tb_apoderado_alumno aa
+            JOIN tb_apoderados ap ON aa.apoderado_id = ap.id
+            WHERE aa.alumno_id = ? AND aa.activo = 1
+            ORDER BY aa.es_apoderado_titular DESC LIMIT 1
+        `, [id]);
+        if (apodRows.length > 0) {
+            apoderado = apodRows[0];
+        } else if (alumno.matricula_id) {
+            // Fallback: desde la matrícula
+            const [apodMatRows] = await pool.query(`
+                SELECT ap.*
                 FROM tb_matriculas m
                 JOIN tb_apoderados ap ON m.apoderado_id = ap.id
                 WHERE m.id = ?
-             `, [alumno.matricula_id]);
-            if (apodRows.length > 0) apoderado = apodRows[0];
+            `, [alumno.matricula_id]);
+            if (apodMatRows.length > 0) apoderado = apodMatRows[0];
         }
 
         res.json({ success: true, data: { alumno, apoderado } });
@@ -391,33 +397,27 @@ app.put('/api/alumnos/:id', async (req, res) => {
     const { id } = req.params;
     const {
         rut, nombres, apellidos, curso_id, direccion, sexo,
-        // Campos de Ficha Médica
         alergias, enfermedades_cronicas, tiene_nee, detalle_nee,
         contacto_emergencia_nombre, contacto_emergencia_telefono,
-        // Contexto
-        establecimiento_id = 1,
-        usuario_id = null,
-        tipo_usuario = 'sistema',
-        nombre_usuario = 'Sistema'
+        establecimiento_id = 1
     } = req.body;
 
     const connection = await pool.getConnection();
+    const anioActual = new Date().getFullYear();
 
     try {
         await connection.beginTransaction();
 
-        // 1. Obtener datos actuales del alumno para el log (desde matricula vigente)
+        // 1. Verificar que el alumno existe y obtener matrícula vigente
         const [alumnoActual] = await connection.query(`
-            SELECT 
-                a.rut, a.nombres, a.apellidos, 
-                m.curso_asignado_id as curso_id, 
-                c.nombre as curso_nombre,
-                m.id as matricula_id
+            SELECT
+                a.id,
+                m.id as matricula_id,
+                m.curso_asignado_id as curso_id
             FROM tb_alumnos a
-            LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = 2026
-            LEFT JOIN tb_cursos c ON m.curso_asignado_id = c.id
+            LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = ?
             WHERE a.id = ?
-        `, [id]);
+        `, [anioActual, id]);
 
         if (alumnoActual.length === 0) {
             await connection.rollback();
@@ -426,40 +426,32 @@ app.put('/api/alumnos/:id', async (req, res) => {
 
         const datosAnteriores = alumnoActual[0];
 
-        // 2. Actualizar tb_alumnos
+        // 2. Actualizar tb_alumnos (todos los campos editables)
         await connection.query(`
             UPDATE tb_alumnos
-            SET rut = ?, nombres = ?, apellidos = ?, direccion = ?, sexo = ?
+            SET rut = ?, nombres = ?, apellidos = ?, direccion = ?, sexo = ?,
+                alergias = ?, enfermedades_cronicas = ?,
+                contacto_emergencia_nombre = ?, contacto_emergencia_telefono = ?
             WHERE id = ?
-        `, [rut, nombres, apellidos, direccion, sexo, id]);
+        `, [
+            rut, nombres, apellidos, direccion || null, sexo || null,
+            alergias || null, enfermedades_cronicas || null,
+            contacto_emergencia_nombre || null, contacto_emergencia_telefono || null,
+            id
+        ]);
 
-        // 3. Actualizar tb_matriculas (si existe)
-        if (datosAnteriores.matricula_id) {
-            const neeValue = parseInt(tiene_nee) === 1 ? 1 : 0;
+        // 3. Si cambió el curso, actualizar tb_matriculas y tb_alumno_establecimiento
+        if (datosAnteriores.matricula_id && curso_id !== undefined) {
+            await connection.query(
+                'UPDATE tb_matriculas SET curso_asignado_id = ? WHERE id = ?',
+                [curso_id || null, datosAnteriores.matricula_id]
+            );
             await connection.query(`
-                UPDATE tb_matriculas
-                SET curso_asignado_id = ?,
-                    nombres_alumno = ?, apellidos_alumno = ?, rut_alumno = ?,
-                    direccion_alumno = ?, sexo_alumno = ?,
-                    alergias = ?, enfermedades_cronicas = ?, 
-                    tiene_nee = ?, detalle_nee = ?,
-                    contacto_emergencia_nombre = ?, contacto_emergencia_telefono = ?
-                WHERE id = ?
-             `, [
-                curso_id || null,
-                nombres, apellidos, rut,
-                direccion, sexo,
-                alergias || null, enfermedades_cronicas || null,
-                neeValue, detalle_nee || null,
-                contacto_emergencia_nombre || null, contacto_emergencia_telefono || null,
-                datosAnteriores.matricula_id
-            ]);
+                UPDATE tb_alumno_establecimiento
+                SET curso_id = ?
+                WHERE alumno_id = ? AND establecimiento_id = ? AND anio_academico = ? AND activo = 1
+            `, [curso_id || null, id, establecimiento_id, anioActual]);
         }
-
-        /* 
-           (Opcional: Podríamos mantener el log de actividades aquí si fuese crítico, 
-           pero para simplificar el código en este paso nos enfocamos en que funcione la actualización)
-        */
 
         await connection.commit();
         res.json({ success: true, message: 'Ficha actualizada correctamente' });

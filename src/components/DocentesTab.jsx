@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useMensaje } from '../contexts';
 import { useDropdown, useResponsive } from '../hooks';
-import config from '../config/env';
+import { apiFetch } from '../utils/api';
 
 // Modal para editar docente
 const ModalEditarDocente = ({ docente, asignaturas, onGuardar, onCerrar }) => {
@@ -33,9 +33,8 @@ const ModalEditarDocente = ({ docente, asignaturas, onGuardar, onCerrar }) => {
 
     setGuardando(true);
     try {
-      const response = await fetch(`${config.apiBaseUrl}/docentes/${docente.id}`, {
+      const response = await apiFetch(`/docentes/${docente.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rut: formEditar.rut,
           nombres: formEditar.nombres,
@@ -168,7 +167,7 @@ function DocentesTab() {
 
   const cargarAsignaturas = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/asignaturas`);
+      const response = await apiFetch('/asignaturas');
       const data = await response.json();
       if (data.success) {
         setAsignaturasDB(data.data || []);
@@ -180,7 +179,7 @@ function DocentesTab() {
 
   const cargarDocentes = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/docentes`);
+      const response = await apiFetch('/docentes');
       const data = await response.json();
       if (data.success) {
         setDocentesDB(data.data || []);
@@ -213,9 +212,8 @@ function DocentesTab() {
     setCargando(true);
 
     try {
-      const response = await fetch(`${config.apiBaseUrl}/docentes/agregar`, {
+      const response = await apiFetch('/docentes/agregar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rut: formData.rut,
           nombres: formData.nombres,
@@ -256,9 +254,8 @@ function DocentesTab() {
   const eliminarDocente = async (docente) => {
     if (window.confirm(`¿Desea eliminar al docente ${docente.nombre_completo} de este establecimiento?\n\nEsta accion desactivara al docente y sus asignaturas asignadas.`)) {
       try {
-        const response = await fetch(`${config.apiBaseUrl}/docentes/${docente.id}`, {
+        const response = await apiFetch(`/docentes/${docente.id}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             establecimiento_id: 1,
             usuario_id: null,
@@ -299,9 +296,8 @@ function DocentesTab() {
     }
 
     try {
-      const response = await fetch(`${config.apiBaseUrl}/asignaturas`, {
+      const response = await apiFetch('/asignaturas', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nombre: nuevaAsignatura.trim(),
           establecimiento_id: 1
@@ -330,7 +326,7 @@ function DocentesTab() {
     }
 
     try {
-      const response = await fetch(`${config.apiBaseUrl}/asignaturas/${asignaturaEliminar}`, {
+      const response = await apiFetch(`/asignaturas/${asignaturaEliminar}`, {
         method: 'DELETE'
       });
 

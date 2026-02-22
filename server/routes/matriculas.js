@@ -1,18 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const bcrypt = require('bcryptjs');
 
 // GET /api/matriculas
 router.get('/', async (req, res) => {
     try {
         const { establecimiento_id, anio, curso_id } = req.query;
         let query = `
-            SELECT m.*, 
+            SELECT m.*,
+                   CONCAT(al.nombres, ' ', al.apellidos) as nombre_alumno,
+                   al.rut as rut_alumno,
                    c.nombre as nombre_curso,
-                   CONCAT(a.nombres, ' ', a.apellidos) as nombre_apoderado
+                   CONCAT(ap.nombres, ' ', ap.apellidos) as nombre_apoderado
             FROM tb_matriculas m
+            LEFT JOIN tb_alumnos al ON m.alumno_id = al.id
             LEFT JOIN tb_cursos c ON m.curso_asignado_id = c.id
-            LEFT JOIN tb_apoderados a ON m.apoderado_id = a.id
+            LEFT JOIN tb_apoderados ap ON m.apoderado_id = ap.id
             WHERE m.activo = 1
         `;
         const params = [];
@@ -30,13 +34,13 @@ router.get('/', async (req, res) => {
 
 // POST /api/matriculas - Crear Matrícula
 router.post('/', async (req, res) => {
-    const connection = await pool.getConnection(); // Transacción
+    const connection = await pool.getConnection();
     await connection.beginTransaction();
     try {
         const {
             establecimiento_id,
-            alumno_id, apoderado_id, // IDs existentes (opcionales)
-            curso_asignado_id, anio_academico, periodo_matricula_id,
+            alumno_id_existente,
+            curso_asignado_id, anio_academico,
             // Datos Alumno
             rut_alumno, nombres_alumno, apellidos_alumno,
             fecha_nacimiento_alumno, sexo_alumno, nacionalidad_alumno,
@@ -46,87 +50,200 @@ router.post('/', async (req, res) => {
             email_apoderado, telefono_apoderado, direccion_apoderado,
             parentezco,
             // Antecedentes & Salud
-            colegio_procedencia, ultimo_curso_aprobado, promedio_notas_anterior,
-            tiene_nee, detalle_nee, alergias, enfermedades_cronicas,
+            colegio_procedencia, tiene_nee, detalle_nee, alergias, enfermedades_cronicas,
             contacto_emergencia_nombre, contacto_emergencia_telefono,
             observaciones_apoderado
         } = req.body;
 
-        if (!establecimiento_id || !rut_alumno || !nombres_alumno) {
+        const estId = establecimiento_id || 1;
+        const anio = anio_academico || new Date().getFullYear();
+
+        if (!rut_alumno || !nombres_alumno) {
             await connection.rollback(); connection.release();
             return res.status(400).json({ success: false, error: 'Faltan campos obligatorios del alumno' });
         }
+        if (!rut_apoderado || !nombres_apoderado) {
+            await connection.rollback(); connection.release();
+            return res.status(400).json({ success: false, error: 'Debe ingresar RUT y Nombre del Apoderado' });
+        }
 
-        // 1. APODERADO
-        let finalApoderadoId = apoderado_id;
-        if (!finalApoderadoId) {
-            if (!rut_apoderado || !nombres_apoderado) {
-                await connection.rollback(); connection.release();
-                return res.status(400).json({ success: false, error: 'Debe ingresar RUT y Nombre del Apoderado' });
-            }
-            const [apoderados] = await connection.query('SELECT id FROM tb_apoderados WHERE rut = ?', [rut_apoderado]);
-            if (apoderados.length > 0) {
-                finalApoderadoId = apoderados[0].id;
+        // ─── 1. APODERADO (buscar o crear con usuario) ───
+        let finalApoderadoId;
+        const [apoderadosExist] = await connection.query('SELECT id FROM tb_apoderados WHERE rut = ?', [rut_apoderado]);
+        if (apoderadosExist.length > 0) {
+            finalApoderadoId = apoderadosExist[0].id;
+            // Actualizar datos si vienen nuevos
+            await connection.query(`
+                UPDATE tb_apoderados SET
+                    nombres = COALESCE(?, nombres), apellidos = COALESCE(?, apellidos),
+                    email = COALESCE(?, email), telefono = COALESCE(?, telefono),
+                    direccion = COALESCE(?, direccion)
+                WHERE id = ?
+            `, [nombres_apoderado, apellidos_apoderado, email_apoderado, telefono_apoderado, direccion_apoderado, finalApoderadoId]);
+        } else {
+            // Crear usuario para el apoderado
+            const emailAp = email_apoderado || `${rut_apoderado.replace(/\./g, '').replace('-', '')}@sinregistro.cl`;
+            const passTemp = rut_apoderado.replace(/\./g, '').substring(0, 6);
+            const passHash = await bcrypt.hash(passTemp, 10);
+
+            // Verificar si ya existe un usuario con ese email
+            const [usuariosExist] = await connection.query('SELECT id FROM tb_usuarios WHERE email = ?', [emailAp]);
+            let usuarioId;
+            if (usuariosExist.length > 0) {
+                usuarioId = usuariosExist[0].id;
             } else {
-                const passTemp = rut_apoderado.replace(/\./g, '').substring(0, 4);
-                const [nuevoAp] = await connection.query(`
-                    INSERT INTO tb_apoderados (rut, nombres, apellidos, email, telefono, direccion, clave, estado, fecha_registro) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'activo', NOW())
-                `, [rut_apoderado, nombres_apoderado, apellidos_apoderado, email_apoderado, telefono_apoderado, direccion_apoderado, passTemp]);
-                finalApoderadoId = nuevoAp.insertId;
+                const [nuevoUsuario] = await connection.query(`
+                    INSERT INTO tb_usuarios (email, password_hash, tipo_usuario, activo, email_verificado, debe_cambiar_password)
+                    VALUES (?, ?, 'apoderado', 1, 0, 1)
+                `, [emailAp, passHash]);
+                usuarioId = nuevoUsuario.insertId;
             }
+
+            const [nuevoAp] = await connection.query(`
+                INSERT INTO tb_apoderados (usuario_id, rut, nombres, apellidos, email, telefono, direccion, activo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            `, [usuarioId, rut_apoderado, nombres_apoderado, apellidos_apoderado || '', email_apoderado || null, telefono_apoderado || null, direccion_apoderado || null]);
+            finalApoderadoId = nuevoAp.insertId;
         }
 
-        // 2. PERIODO
-        let periodoId = periodo_matricula_id;
-        if (!periodoId) {
-            const [periodos] = await connection.query('SELECT id FROM tb_periodos_matricula WHERE establecimiento_id = ? AND anio = ? AND activo = 1 LIMIT 1', [establecimiento_id, anio_academico || new Date().getFullYear()]);
-            if (periodos.length > 0) periodoId = periodos[0].id;
-            else {
-                const year = anio_academico || new Date().getFullYear();
-                const [nuevo] = await connection.query('INSERT INTO tb_periodos_matricula (establecimiento_id, nombre, anio, fecha_inicio, fecha_fin, estado) VALUES (?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR), "abierto")', [establecimiento_id, `Admisión ${year}`, year]);
-                periodoId = nuevo.insertId;
-            }
+        // ─── 2. PERIODO MATRÍCULA ───
+        const [periodos] = await connection.query(
+            'SELECT id FROM tb_periodos_matricula WHERE establecimiento_id = ? AND anio = ? AND activo = 1 LIMIT 1',
+            [estId, anio]
+        );
+        let periodoId;
+        if (periodos.length > 0) {
+            periodoId = periodos[0].id;
+        } else {
+            const [nuevo] = await connection.query(
+                `INSERT INTO tb_periodos_matricula (establecimiento_id, nombre, anio, fecha_inicio, fecha_fin, estado, activo)
+                 VALUES (?, ?, ?, CONCAT(?, '-03-01'), CONCAT(?, '-12-31'), 'abierto', 1)`,
+                [estId, `Admisión ${anio}`, anio, anio, anio]
+            );
+            periodoId = nuevo.insertId;
         }
 
-        // 3. ALUMNO (MAESTRO)
-        let finalAlumnoId = alumno_id;
+        // ─── 3. ALUMNO (buscar o crear) ───
+        let finalAlumnoId = alumno_id_existente || null;
         if (!finalAlumnoId) {
-            const [alumnosExistentes] = await connection.query('SELECT id FROM tb_alumnos WHERE rut = ?', [rut_alumno]);
-            if (alumnosExistentes.length > 0) {
-                finalAlumnoId = alumnosExistentes[0].id;
+            const [alumnosExist] = await connection.query('SELECT id FROM tb_alumnos WHERE rut = ?', [rut_alumno]);
+            if (alumnosExist.length > 0) {
+                finalAlumnoId = alumnosExist[0].id;
+                // Actualizar datos del alumno
+                await connection.query(`
+                    UPDATE tb_alumnos SET
+                        nombres = ?, apellidos = ?, fecha_nacimiento = ?,
+                        sexo = ?, nacionalidad = ?, direccion = ?,
+                        comuna = ?, ciudad = ?, email = ?, telefono = ?,
+                        alergias = ?, enfermedades_cronicas = ?,
+                        contacto_emergencia_nombre = ?, contacto_emergencia_telefono = ?
+                    WHERE id = ?
+                `, [
+                    nombres_alumno, apellidos_alumno, fecha_nacimiento_alumno || null,
+                    sexo_alumno || null, nacionalidad_alumno || 'Chilena', direccion_alumno || null,
+                    comuna_alumno || null, ciudad_alumno || null, email_alumno || null, telefono_alumno || null,
+                    alergias || null, enfermedades_cronicas || null,
+                    contacto_emergencia_nombre || null, contacto_emergencia_telefono || null,
+                    finalAlumnoId
+                ]);
             } else {
-                const passAlumno = rut_alumno.replace(/\./g, '').substring(0, 4);
                 const [nuevoAl] = await connection.query(`
-                    INSERT INTO tb_alumnos (rut, nombres, apellidos, fecha_nacimiento, genero, direccion, comuna, ciudad, email, telefono, establecimiento_id, curso_actual_id, clave, estado, fecha_registro) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'activo', NOW())
-                `, [rut_alumno, nombres_alumno, apellidos_alumno, fecha_nacimiento_alumno || null, sexo_alumno || null, direccion_alumno || null, comuna_alumno || null, ciudad_alumno || null, email_alumno || null, telefono_alumno || null, establecimiento_id, curso_asignado_id || null, passAlumno]);
+                    INSERT INTO tb_alumnos (rut, nombres, apellidos, fecha_nacimiento, sexo, nacionalidad,
+                        direccion, comuna, ciudad, email, telefono,
+                        alergias, enfermedades_cronicas, contacto_emergencia_nombre, contacto_emergencia_telefono, activo)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                `, [
+                    rut_alumno, nombres_alumno, apellidos_alumno,
+                    fecha_nacimiento_alumno || null, sexo_alumno || null, nacionalidad_alumno || 'Chilena',
+                    direccion_alumno || null, comuna_alumno || null, ciudad_alumno || null,
+                    email_alumno || null, telefono_alumno || null,
+                    alergias || null, enfermedades_cronicas || null,
+                    contacto_emergencia_nombre || null, contacto_emergencia_telefono || null
+                ]);
                 finalAlumnoId = nuevoAl.insertId;
             }
         }
 
-        // 4. MATRICULA
-        const numMatricula = `${anio_academico || 2026}-${Math.floor(Math.random() * 9000) + 1000}`;
-        const [result] = await connection.query(`
+        // ─── 4. MATRÍCULA ───
+        // Verificar que no exista ya una matrícula activa para este alumno en este año
+        const [matExistente] = await connection.query(
+            'SELECT id FROM tb_matriculas WHERE alumno_id = ? AND anio_academico = ? AND establecimiento_id = ? AND activo = 1',
+            [finalAlumnoId, anio, estId]
+        );
+        if (matExistente.length > 0) {
+            await connection.rollback(); connection.release();
+            return res.status(400).json({ success: false, error: `El alumno ya tiene una matrícula activa para el año ${anio}` });
+        }
+
+        const numMatricula = `${anio}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+        const [resultMat] = await connection.query(`
             INSERT INTO tb_matriculas (
-                establecimiento_id, periodo_matricula_id, alumno_id, apoderado_id, anio_academico, numero_matricula, tipo_matricula, estado, curso_asignado_id, 
-                nombres_alumno, apellidos_alumno, rut_alumno, fecha_nacimiento_alumno, sexo_alumno, nacionalidad_alumno, direccion_alumno, comuna_alumno, ciudad_alumno, email_alumno, telefono_alumno,
-                parentezco, colegio_procedencia, ultimo_curso_aprobado, promedio_notas_anterior, tiene_nee, detalle_nee, alergias, enfermedades_cronicas, contacto_emergencia_nombre, contacto_emergencia_telefono, observaciones_apoderado, fecha_creacion, activo
-            ) VALUES (?, ?, ?, ?, ?, ?, 'nuevo', 'aprobada', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 1)
+                establecimiento_id, periodo_matricula_id, alumno_id, apoderado_id,
+                anio_academico, numero_matricula, tipo_matricula, estado,
+                curso_asignado_id, ncontacto_emergencia_nombre, contacto_emergencia_telefono,
+                observaciones_apoderado, activo
+            ) VALUES (?, ?, ?, ?, ?, ?, 'nuevo', 'aprobada', ?, ?, ?, ?, 1)
         `, [
-            establecimiento_id, periodoId, finalAlumnoId || null, finalApoderadoId, anio_academico || new Date().getFullYear(), numMatricula, curso_asignado_id || null,
-            nombres_alumno, apellidos_alumno, rut_alumno, fecha_nacimiento_alumno || null, sexo_alumno || null, nacionalidad_alumno || 'Chilena', direccion_alumno || null, comuna_alumno || null, ciudad_alumno || null, email_alumno || null, telefono_alumno || null,
-            parentezco || 'Apoderado', colegio_procedencia || null, ultimo_curso_aprobado || null, promedio_notas_anterior || null, tiene_nee ? 1 : 0, detalle_nee || null, alergias || null, enfermedades_cronicas || null, contacto_emergencia_nombre || null, contacto_emergencia_telefono || null, observaciones_apoderado || null
+            estId, periodoId, finalAlumnoId, finalApoderadoId,
+            anio, numMatricula,
+            curso_asignado_id || null,
+            contacto_emergencia_nombre || null, contacto_emergencia_telefono || null,
+            observaciones_apoderado || null
+        ]);
+
+        // ─── 5. TABLAS DE RELACIÓN ───
+
+        // 5a. tb_apoderado_alumno
+        const parentescoNorm = (parentezco || 'padre').toLowerCase().replace('apoderado', 'tutor_legal');
+        const parentescoValido = ['padre','madre','abuelo','abuela','tio','tia','hermano','hermana','tutor_legal','otro'];
+        const parentescoFinal = parentescoValido.includes(parentescoNorm) ? parentescoNorm : 'otro';
+        await connection.query(`
+            INSERT INTO tb_apoderado_alumno (apoderado_id, alumno_id, parentesco, es_apoderado_titular, activo)
+            VALUES (?, ?, ?, 1, 1)
+            ON DUPLICATE KEY UPDATE parentesco = VALUES(parentesco), activo = 1
+        `, [finalApoderadoId, finalAlumnoId, parentescoFinal]);
+
+        // 5b. tb_alumno_establecimiento
+        await connection.query(`
+            INSERT INTO tb_alumno_establecimiento (alumno_id, establecimiento_id, curso_id, anio_academico, numero_matricula, fecha_ingreso, activo)
+            VALUES (?, ?, ?, ?, ?, CURDATE(), 1)
+            ON DUPLICATE KEY UPDATE curso_id = VALUES(curso_id), numero_matricula = VALUES(numero_matricula), activo = 1
+        `, [finalAlumnoId, estId, curso_asignado_id || null, anio, numMatricula]);
+
+        // 5c. tb_apoderado_establecimiento
+        await connection.query(`
+            INSERT INTO tb_apoderado_establecimiento (apoderado_id, establecimiento_id, es_apoderado_activo, fecha_registro, activo)
+            VALUES (?, ?, 1, CURDATE(), 1)
+            ON DUPLICATE KEY UPDATE es_apoderado_activo = 1, activo = 1
+        `, [finalApoderadoId, estId]);
+
+        // ─── 6. PREREGISTRO RELACIONES (para auto-registro futuro del apoderado) ───
+        const [cursoInfo] = await connection.query('SELECT nombre FROM tb_cursos WHERE id = ?', [curso_asignado_id || 0]);
+        const cursoNombre = cursoInfo.length > 0 ? cursoInfo[0].nombre : null;
+        await connection.query(`
+            INSERT INTO tb_preregistro_relaciones (
+                establecimiento_id, rut_apoderado, nombres_apoderado, apellidos_apoderado,
+                email_apoderado, telefono_apoderado, rut_alumno, nombres_alumno, apellidos_alumno,
+                curso_nombre, parentesco, es_apoderado_titular, activo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1)
+            ON DUPLICATE KEY UPDATE
+                nombres_apoderado = VALUES(nombres_apoderado), apellidos_apoderado = VALUES(apellidos_apoderado),
+                email_apoderado = VALUES(email_apoderado), curso_nombre = VALUES(curso_nombre), activo = 1
+        `, [
+            estId, rut_apoderado, nombres_apoderado, apellidos_apoderado || '',
+            email_apoderado || null, telefono_apoderado || null,
+            rut_alumno, nombres_alumno, apellidos_alumno,
+            cursoNombre, parentescoFinal
         ]);
 
         await connection.commit();
         connection.release();
-        res.json({ success: true, message: 'Matrícula guardada correctamente', id: result.insertId });
+        res.json({ success: true, message: 'Matrícula guardada correctamente', id: resultMat.insertId });
 
     } catch (error) {
         if (connection) { await connection.rollback(); connection.release(); }
         console.error('Error matrículas:', error);
-        res.status(500).json({ success: false, error: 'Error: ' + error.message });
+        res.status(500).json({ success: false, error: 'Error al crear matrícula: ' + error.message });
     }
 });
 
@@ -144,8 +261,8 @@ router.get('/apoderado/:rut', async (req, res) => {
                     nombres: ap.nombres,
                     apellidos: ap.apellidos,
                     email: ap.email,
-                    telefono: ap.telefono
-                    // SIN DIRECCION
+                    telefono: ap.telefono,
+                    direccion: ap.direccion
                 }
             });
         } else {

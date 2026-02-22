@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import config from '../config/env';
+import { apiFetch } from '../utils/api';
 
 const MatriculasTab = ({ mostrarMensaje }) => {
     // ESTADOS
@@ -57,8 +57,8 @@ const MatriculasTab = ({ mostrarMensaje }) => {
         cargarAlumnos();
     }, []);
 
-    const cargarCursos = async () => { /* ... */ try { const r = await fetch(`${config.apiBaseUrl}/cursos`); const d = await r.json(); if (d.success) setCursos(d.data); } catch (e) { } };
-    const cargarAlumnos = async () => { /* ... */ try { const r = await fetch(`${config.apiBaseUrl}/alumnos`); const d = await r.json(); if (d.success) setAlumnosExistentes(d.data); } catch (e) { } };
+    const cargarCursos = async () => { /* ... */ try { const r = await apiFetch(`/cursos`); const d = await r.json(); if (d.success) setCursos(d.data); } catch (e) { } };
+    const cargarAlumnos = async () => { /* ... */ try { const r = await apiFetch(`/alumnos`); const d = await r.json(); if (d.success) setAlumnosExistentes(d.data); } catch (e) { } };
 
     // Buscador Alumnos logic
     useEffect(() => {
@@ -85,7 +85,7 @@ const MatriculasTab = ({ mostrarMensaje }) => {
     const handleBlurRutApoderado = async () => {
         if (form.rut_apoderado.length > 8) {
             try {
-                const res = await fetch(`${config.apiBaseUrl}/matriculas/apoderado/${form.rut_apoderado}`);
+                const res = await apiFetch(`/matriculas/apoderado/${form.rut_apoderado}`);
                 const data = await res.json();
                 if (data.success && data.data) {
                     setForm(prev => ({
@@ -173,9 +173,8 @@ const MatriculasTab = ({ mostrarMensaje }) => {
 
         // VALIDACIÓN PREVIA EN BACKEND
         if (form.alumno_id_existente) {
-            const valRes = await fetch(`${config.apiBaseUrl}/matriculas/validar-promocion`, {
+            const valRes = await apiFetch(`/matriculas/validar-promocion`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ alumno_id: form.alumno_id_existente, curso_destino_id: form.curso_asignado_id })
             });
             const valData = await valRes.json();
@@ -192,7 +191,7 @@ const MatriculasTab = ({ mostrarMensaje }) => {
         try {
             const dirApoderadoFinal = mismaDireccion ? form.direccion_alumno : form.direccion_apoderado;
             const payload = { establishment_id: 1, ...form, direccion_apoderado: dirApoderadoFinal, establecimiento_id: 1 };
-            const res = await fetch(`${config.apiBaseUrl}/matriculas`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const res = await apiFetch(`/matriculas`, { method: 'POST', body: JSON.stringify(payload) });
             const data = await res.json();
 
             if (data.success) {

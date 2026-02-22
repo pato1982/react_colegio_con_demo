@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useResponsive, useDropdown } from '../hooks';
 import { useMensaje, useAuth } from '../contexts';
-import config from '../config/env';
+import { apiFetch } from '../utils/api';
 
 function ComunicadosTab() {
   const { mostrarMensaje } = useMensaje();
@@ -43,7 +43,7 @@ function ComunicadosTab() {
 
   const cargarCursos = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/cursos`);
+      const response = await apiFetch(`/cursos`);
       const data = await response.json();
       if (data.success) {
         setCursosDB(data.data || []);
@@ -91,9 +91,8 @@ function ComunicadosTab() {
     setEnviando(true);
 
     try {
-      const response = await fetch(`${config.apiBaseUrl}/comunicados`, {
+      const response = await apiFetch(`/comunicados`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           titulo: formData.titulo.trim(),
           mensaje: formData.mensaje.trim(),

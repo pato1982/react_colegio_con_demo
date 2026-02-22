@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useMensaje } from '../contexts';
 import { useDropdown } from '../hooks';
-import config from '../config/env';
+import { apiFetch } from '../utils/api';
 
 function AsignacionesTab() {
   const { mostrarMensaje } = useMensaje();
@@ -35,7 +35,7 @@ function AsignacionesTab() {
 
   const cargarDocentes = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/docentes`);
+      const response = await apiFetch(`/docentes`);
       const data = await response.json();
       if (data.success) {
         setDocentesDB(data.data || []);
@@ -47,7 +47,7 @@ function AsignacionesTab() {
 
   const cargarCursos = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/cursos`);
+      const response = await apiFetch(`/cursos`);
       const data = await response.json();
       if (data.success) {
         setCursosDB(data.data || []);
@@ -59,7 +59,7 @@ function AsignacionesTab() {
 
   const cargarAsignaciones = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/asignaciones`);
+      const response = await apiFetch(`/asignaciones`);
       const data = await response.json();
       if (data.success) {
         setAsignacionesDB(data.data || []);
@@ -114,9 +114,9 @@ function AsignacionesTab() {
     setCargando(true);
 
     try {
-      const response = await fetch(`${config.apiBaseUrl}/asignaciones`, {
+      const response = await apiFetch(`/asignaciones`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+
         body: JSON.stringify({
           docente_id: parseInt(formData.docenteId),
           curso_id: parseInt(formData.cursoId),
@@ -158,9 +158,9 @@ function AsignacionesTab() {
   const eliminarAsignacion = async (asignacion) => {
     if (window.confirm(`¿Desea eliminar la asignacion de ${asignacion.docente_nombre_completo} - ${asignacion.curso_nombre} - ${asignacion.asignatura_nombre}?`)) {
       try {
-        const response = await fetch(`${config.apiBaseUrl}/asignaciones/${asignacion.id}`, {
+        const response = await apiFetch(`/asignaciones/${asignacion.id}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+  
           body: JSON.stringify({
             establecimiento_id: 1,
             usuario_id: null,

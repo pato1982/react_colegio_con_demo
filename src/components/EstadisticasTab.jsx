@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import { useResponsive, useDropdown } from '../hooks';
-import config from '../config/env';
+import { apiFetch } from '../utils/api';
 import {
   KPICard,
   GraficoCard,
@@ -90,7 +90,7 @@ function EstadisticasTab() {
       else if (tipoFiltro === 'curso') idFiltro = cursoSeleccionado;
       else if (tipoFiltro === 'asignatura') return; // Asignatura por ahora no tiene este detalle específico igual
 
-      const res = await fetch(`${config.apiBaseUrl}/estadisticas/riesgo-detalle?tipo=${tipoFiltro}&id=${idFiltro}`);
+      const res = await apiFetch(`/estadisticas/riesgo-detalle?tipo=${tipoFiltro}&id=${idFiltro}`);
       const data = await res.json();
 
       if (data.success) {
@@ -163,9 +163,9 @@ function EstadisticasTab() {
   const cargarListas = async () => {
     try {
       const [cursosRes, docentesRes, asignaturasRes] = await Promise.all([
-        fetch(`${config.apiBaseUrl}/estadisticas/cursos`),
-        fetch(`${config.apiBaseUrl}/estadisticas/docentes`),
-        fetch(`${config.apiBaseUrl}/estadisticas/asignaturas`)
+        apiFetch(`/estadisticas/cursos`),
+        apiFetch(`/estadisticas/docentes`),
+        apiFetch(`/estadisticas/asignaturas`)
       ]);
 
       const cursosData = await cursosRes.json();
@@ -185,10 +185,10 @@ function EstadisticasTab() {
     setError(null);
     try {
       const [generalRes, asigRes, rankingRes, distRes] = await Promise.all([
-        fetch(`${config.apiBaseUrl}/estadisticas/general`),
-        fetch(`${config.apiBaseUrl}/estadisticas/general/asignaturas`),
-        fetch(`${config.apiBaseUrl}/estadisticas/general/ranking-cursos`),
-        fetch(`${config.apiBaseUrl}/estadisticas/general/distribucion`)
+        apiFetch(`/estadisticas/general`),
+        apiFetch(`/estadisticas/general/asignaturas`),
+        apiFetch(`/estadisticas/general/ranking-cursos`),
+        apiFetch(`/estadisticas/general/distribucion`)
       ]);
 
       const generalData = await generalRes.json();
@@ -212,8 +212,8 @@ function EstadisticasTab() {
     setCargando(true);
     try {
       const [cursoRes, asigRes] = await Promise.all([
-        fetch(`${config.apiBaseUrl}/estadisticas/curso/${cursoId}`),
-        fetch(`${config.apiBaseUrl}/estadisticas/curso/${cursoId}/asignaturas`)
+        apiFetch(`/estadisticas/curso/${cursoId}`),
+        apiFetch(`/estadisticas/curso/${cursoId}/asignaturas`)
       ]);
 
       const cursoData = await cursoRes.json();
@@ -231,7 +231,7 @@ function EstadisticasTab() {
   const cargarDatosDocente = async (docenteId) => {
     setCargando(true);
     try {
-      const res = await fetch(`${config.apiBaseUrl}/estadisticas/docente/${docenteId}`);
+      const res = await apiFetch(`/estadisticas/docente/${docenteId}`);
       const data = await res.json();
 
       if (data.success) {
@@ -251,7 +251,7 @@ function EstadisticasTab() {
   const cargarDatosDocenteAsignatura = async (docenteId, asignaturaId) => {
     setCargando(true);
     try {
-      const res = await fetch(`${config.apiBaseUrl}/estadisticas/docente/${docenteId}/asignatura/${asignaturaId}`);
+      const res = await apiFetch(`/estadisticas/docente/${docenteId}/asignatura/${asignaturaId}`);
       const data = await res.json();
 
       if (data.success) {
@@ -269,8 +269,8 @@ function EstadisticasTab() {
     setCargando(true);
     try {
       const [asigRes, porCursoRes] = await Promise.all([
-        fetch(`${config.apiBaseUrl}/estadisticas/asignatura/${asignaturaId}`),
-        fetch(`${config.apiBaseUrl}/estadisticas/asignatura/${asignaturaId}/por-curso`)
+        apiFetch(`/estadisticas/asignatura/${asignaturaId}`),
+        apiFetch(`/estadisticas/asignatura/${asignaturaId}/por-curso`)
       ]);
 
       const asigData = await asigRes.json();
@@ -294,8 +294,8 @@ function EstadisticasTab() {
 
       const [asistRes, porCursoRes, rankingRes] = await Promise.all([
         fetch(endpoint),
-        fetch(`${config.apiBaseUrl}/estadisticas/asistencia/por-curso`),
-        fetch(`${config.apiBaseUrl}/estadisticas/asistencia/ranking`)
+        apiFetch(`/estadisticas/asistencia/por-curso`),
+        apiFetch(`/estadisticas/asistencia/ranking`)
       ]);
 
       const asistData = await asistRes.json();

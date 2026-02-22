@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useResponsive, useDropdown } from '../hooks';
 import { useMensaje } from '../contexts';
-import config from '../config/env';
+import { apiFetch } from '../utils/api';
 
 // Componente Select para movil
 const SelectMovilLocal = ({ label, value, valueName, onChange, options, placeholder, isOpen, onToggle }) => (
@@ -55,7 +55,7 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
   useEffect(() => {
     const fetchDetalle = async () => {
       try {
-        const res = await fetch(`${config.apiBaseUrl}/alumnos/${alumnoInicial.id}/detalle`);
+        const res = await apiFetch(`/alumnos/${alumnoInicial.id}/detalle`);
         const json = await res.json();
         if (json.success) {
           setDatosCompletos(json.data);
@@ -90,9 +90,9 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
   const handleSubmit = async () => {
     setGuardando(true);
     try {
-      const response = await fetch(`${config.apiBaseUrl}/alumnos/${alumnoInicial.id}`, {
+      const response = await apiFetch(`/alumnos/${alumnoInicial.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+
         body: JSON.stringify({
           ...formAlumno,
           curso_id: formAlumno.curso_id ? parseInt(formAlumno.curso_id) : null,
@@ -366,7 +366,7 @@ function AlumnosTab() {
 
   const cargarCursos = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/cursos`);
+      const response = await apiFetch(`/cursos`);
       const data = await response.json();
       if (data.success) {
         setCursosDB(data.data || []);
@@ -378,7 +378,7 @@ function AlumnosTab() {
 
   const cargarAlumnos = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/alumnos/por-curso`);
+      const response = await apiFetch(`/alumnos/por-curso`);
       const data = await response.json();
       if (data.success) {
         setAlumnosPorCursoDB(data.data || {});
@@ -395,7 +395,7 @@ function AlumnosTab() {
       return;
     }
     try {
-      const response = await fetch(`${config.apiBaseUrl}/alumnos?curso_id=${cursoId}`);
+      const response = await apiFetch(`/alumnos?curso_id=${cursoId}`);
       const data = await response.json();
       if (data.success) {
         setAlumnosDelCursoFiltro(data.data || []);
@@ -456,9 +456,9 @@ function AlumnosTab() {
   const eliminarAlumno = async (alumno) => {
     if (window.confirm(`¿Desea eliminar al alumno ${alumno.nombre_completo}?\n\nEsta acción lo desactivará del sistema y no aparecerá en ningún listado.`)) {
       try {
-        const response = await fetch(`${config.apiBaseUrl}/alumnos/${alumno.id}`, {
+        const response = await apiFetch(`/alumnos/${alumno.id}`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+  
           body: JSON.stringify({ usuario_modificacion: 'Administrador' })
         });
         const data = await response.json();
