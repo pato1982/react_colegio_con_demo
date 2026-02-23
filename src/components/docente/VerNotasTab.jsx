@@ -358,7 +358,7 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
         }
       `}</style>
 
-      <div className="card" style={{ overflow: 'visible' }}>
+      <div className="card" style={{ overflow: 'visible', position: 'relative', zIndex: 10 }}>
         <div className="card-header"><h3>Buscar Nota</h3></div>
         <div className="card-body" style={{ overflow: 'visible' }}>
           {showMobile ? (
@@ -479,7 +479,7 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: '20px', zIndex: 1 }}>
+      <div className="card" style={{ marginTop: '20px', position: 'relative', zIndex: 1 }}>
         <div className="card-header">
           <h3>Calificaciones del Curso {consultado && asignaturaNombre && `- ${asignaturaNombre}`}</h3>
         </div>
