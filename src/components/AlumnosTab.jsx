@@ -49,6 +49,17 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
     contacto_emergencia_telefono: ''
   });
 
+  // Formulario editable del apoderado
+  const [formApoderado, setFormApoderado] = useState({
+    rut: '',
+    nombres: '',
+    apellidos: '',
+    email: '',
+    telefono: '',
+    direccion: '',
+    parentesco: ''
+  });
+
   const [guardando, setGuardando] = useState(false);
 
   // Cargar datos completos al abrir
@@ -75,6 +86,19 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
             contacto_emergencia_nombre: al.contacto_emergencia_nombre || '',
             contacto_emergencia_telefono: al.contacto_emergencia_telefono || ''
           });
+          // Pre-llenar formulario apoderado
+          const ap = json.data.apoderado;
+          if (ap) {
+            setFormApoderado({
+              rut: ap.rut || '',
+              nombres: ap.nombres || '',
+              apellidos: ap.apellidos || '',
+              email: ap.email || '',
+              telefono: ap.telefono || '',
+              direccion: ap.direccion || '',
+              parentesco: ap.parentezco || ''
+            });
+          }
         } else {
           alert("Error cargando ficha");
         }
@@ -87,24 +111,40 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
     setFormAlumno({ ...formAlumno, [e.target.name]: e.target.value });
   };
 
+  const handleChangeApoderado = (e) => {
+    setFormApoderado({ ...formApoderado, [e.target.name]: e.target.value });
+  };
+
   const handleSubmit = async () => {
     setGuardando(true);
     try {
-      const response = await apiFetch(`/alumnos/${alumnoInicial.id}`, {
-        method: 'PUT',
-
-        body: JSON.stringify({
-          ...formAlumno,
-          curso_id: formAlumno.curso_id ? parseInt(formAlumno.curso_id) : null,
-          tiene_nee: formAlumno.tiene_nee === '1' ? 1 : 0,
-          usuario_modificacion: 'Administrador'
-        })
-      });
-      const data = await response.json();
-      if (data.success) {
-        onGuardar();
+      if (activeTab === 'alumno') {
+        const response = await apiFetch(`/alumnos/${alumnoInicial.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            ...formAlumno,
+            curso_id: formAlumno.curso_id ? parseInt(formAlumno.curso_id) : null,
+            tiene_nee: formAlumno.tiene_nee === '1' ? 1 : 0,
+            usuario_modificacion: 'Administrador'
+          })
+        });
+        const data = await response.json();
+        if (data.success) {
+          onGuardar();
+        } else {
+          alert(data.error || 'Error al actualizar alumno');
+        }
       } else {
-        alert(data.error || 'Error al actualizar');
+        const response = await apiFetch(`/alumnos/${alumnoInicial.id}/apoderado`, {
+          method: 'PUT',
+          body: JSON.stringify(formApoderado)
+        });
+        const data = await response.json();
+        if (data.success) {
+          onGuardar();
+        } else {
+          alert(data.error || 'Error al actualizar apoderado');
+        }
       }
     } catch (error) {
       console.error('Error:', error);
@@ -226,27 +266,60 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
           )}
 
           {activeTab === 'apoderado' && (
-            <div className="info-readonly">
-              <div className="info-section-title">Datos del Responsable</div>
-              {/* Siempre mostramos la grilla, si no hay datos usamos string vacio */}
-              <div className="grid-responsive info-grid">
-                <div className="info-item"><label>Nombre Completo</label><div className="data-val">{datosCompletos.apoderado ? `${datosCompletos.apoderado.nombres} ${datosCompletos.apoderado.apellidos}` : '- - -'}</div></div>
-                <div className="info-item"><label>RUT</label><div className="data-val">{datosCompletos.apoderado?.rut || '- - -'}</div></div>
-                <div className="info-item"><label>Parentesco</label><div className="data-val highlight">{datosCompletos.apoderado?.parentezco || '- - -'}</div></div>
-                <div className="info-item"><label>Email</label><div className="data-val">{datosCompletos.apoderado?.email || '- - -'}</div></div>
-                <div className="info-item"><label>Teléfono</label><div className="data-val">{datosCompletos.apoderado?.telefono || '- - -'}</div></div>
-                <div className="info-item"><label>Dirección</label><div className="data-val">{datosCompletos.apoderado?.direccion || '- - -'}</div></div>
-              </div>
-              {!datosCompletos.apoderado && (
-                <p className="missing-data-msg">⚠️ No hay apoderado vinculado a la matrícula vigente.</p>
-              )}
-            </div>
+            datosCompletos.apoderado ? (
+              <>
+                <div className="grid-responsive">
+                  <div className="form-group">
+                    <label>RUT</label>
+                    <input type="text" className="form-control" name="rut" value={formApoderado.rut} onChange={handleChangeApoderado} />
+                  </div>
+                  <div className="form-group">
+                    <label>Nombres</label>
+                    <input type="text" className="form-control" name="nombres" value={formApoderado.nombres} onChange={handleChangeApoderado} />
+                  </div>
+                  <div className="form-group">
+                    <label>Apellidos</label>
+                    <input type="text" className="form-control" name="apellidos" value={formApoderado.apellidos} onChange={handleChangeApoderado} />
+                  </div>
+                  <div className="form-group">
+                    <label>Parentesco</label>
+                    <select className="form-control" name="parentesco" value={formApoderado.parentesco} onChange={handleChangeApoderado}>
+                      <option value="">Seleccionar...</option>
+                      <option value="padre">Padre</option>
+                      <option value="madre">Madre</option>
+                      <option value="abuelo">Abuelo</option>
+                      <option value="abuela">Abuela</option>
+                      <option value="tio">Tío</option>
+                      <option value="tia">Tía</option>
+                      <option value="hermano">Hermano</option>
+                      <option value="hermana">Hermana</option>
+                      <option value="tutor_legal">Tutor Legal</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input type="email" className="form-control" name="email" value={formApoderado.email} onChange={handleChangeApoderado} />
+                  </div>
+                  <div className="form-group">
+                    <label>{isMobile ? 'Teléfono' : 'Teléfono'}</label>
+                    <input type="text" className="form-control" name="telefono" value={formApoderado.telefono} onChange={handleChangeApoderado} />
+                  </div>
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label>{isMobile ? 'Dirección' : 'Dirección'}</label>
+                    <input type="text" className="form-control" name="direccion" value={formApoderado.direccion} onChange={handleChangeApoderado} />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="missing-data-msg">No hay apoderado vinculado a este alumno.</p>
+            )
           )}
         </div>
 
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onCerrar} disabled={guardando}>Cerrar</button>
-          {activeTab === 'alumno' && (
+          {(activeTab === 'alumno' || (activeTab === 'apoderado' && datosCompletos?.apoderado)) && (
             <button className="btn btn-primary" onClick={handleSubmit} disabled={guardando}>
               {guardando ? 'Guardando...' : 'Guardar Cambios'}
             </button>
@@ -275,7 +348,7 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
         
         /* Ajuste de contenido para ser más "chico" */
         .modal-xl .modal-header { padding: 15px 20px; }
-        .modal-xl .modal-header h3 { font-size: 1.15rem; margin: 0; }
+        .modal-xl .modal-header h3 { font-size: 1.15rem; margin: 0; color: white; }
         .modal-xl .form-control { font-size: 0.9rem; padding: 6px 10px; height: auto; }
         .modal-xl .modal-tab-btn { padding: 8px 12px; font-size: 0.9rem; }
         .modal-xl .modal-body { padding: 0 20px 15px; flex: 1; overflow-y: auto; }

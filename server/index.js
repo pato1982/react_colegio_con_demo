@@ -241,6 +241,19 @@ app.post('/api/alumnos', async (req, res) => {
       `, [alumnoId, establecimiento_id, curso_id]);
         }
 
+        // Registrar en tb_log_actividades
+        await pool.query(`
+            INSERT INTO tb_log_actividades
+            (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+             entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+            VALUES (NULL, 'administrador', 'Administrador', 'crear', 'alumnos', ?, 'alumno', ?, NULL, ?, ?)
+        `, [
+            `Alumno creado: ${nombres} ${apellidos} (RUT: ${rut})`,
+            alumnoId,
+            JSON.stringify({ rut, nombres, apellidos, fecha_nacimiento, sexo, curso_id }),
+            establecimiento_id
+        ]);
+
         res.json({ success: true, message: 'Alumno creado correctamente', id: alumnoId });
     } catch (error) {
         console.error('Error al crear alumno:', error);
@@ -396,14 +409,18 @@ app.put('/api/alumnos/:id', async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        // 1. Verificar que el alumno existe y obtener matrícula vigente
+        // 1. Verificar que el alumno existe y obtener datos anteriores completos
         const [alumnoActual] = await connection.query(`
             SELECT
-                a.id,
+                a.id, a.rut, a.nombres, a.apellidos, a.direccion, a.sexo,
+                a.alergias, a.enfermedades_cronicas,
+                a.contacto_emergencia_nombre, a.contacto_emergencia_telefono,
                 m.id as matricula_id,
-                m.curso_asignado_id as curso_id
+                m.curso_asignado_id as curso_id,
+                c.nombre as curso_nombre
             FROM tb_alumnos a
             LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = ?
+            LEFT JOIN tb_cursos c ON m.curso_asignado_id = c.id
             WHERE a.id = ?
         `, [anioActual, id]);
 
@@ -441,6 +458,20 @@ app.put('/api/alumnos/:id', async (req, res) => {
             `, [curso_id || null, id, establecimiento_id, anioActual]);
         }
 
+        // 4. Registrar en tb_log_actividades
+        await connection.query(`
+            INSERT INTO tb_log_actividades
+            (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+             entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+            VALUES (NULL, 'administrador', 'Administrador', 'editar', 'alumnos', ?, 'alumno', ?, ?, ?, ?)
+        `, [
+            `Alumno editado: ${datosAnteriores.nombres} ${datosAnteriores.apellidos}`,
+            id,
+            JSON.stringify({ rut: datosAnteriores.rut, nombres: datosAnteriores.nombres, apellidos: datosAnteriores.apellidos, direccion: datosAnteriores.direccion, sexo: datosAnteriores.sexo, alergias: datosAnteriores.alergias, enfermedades_cronicas: datosAnteriores.enfermedades_cronicas, contacto_emergencia_nombre: datosAnteriores.contacto_emergencia_nombre, contacto_emergencia_telefono: datosAnteriores.contacto_emergencia_telefono, curso_id: datosAnteriores.curso_id }),
+            JSON.stringify({ rut, nombres, apellidos, direccion, sexo, alergias, enfermedades_cronicas, contacto_emergencia_nombre, contacto_emergencia_telefono, curso_id }),
+            establecimiento_id
+        ]);
+
         await connection.commit();
         res.json({ success: true, message: 'Ficha actualizada correctamente' });
 
@@ -448,6 +479,75 @@ app.put('/api/alumnos/:id', async (req, res) => {
         await connection.rollback();
         console.error('Error al actualizar alumno:', error);
         res.status(500).json({ success: false, error: 'Error al actualizar alumno' });
+    } finally {
+        connection.release();
+    }
+});
+
+// PUT /api/alumnos/:alumnoId/apoderado - Actualizar datos del apoderado vinculado al alumno
+app.put('/api/alumnos/:alumnoId/apoderado', async (req, res) => {
+    const { alumnoId } = req.params;
+    const { rut, nombres, apellidos, email, telefono, direccion, parentesco } = req.body;
+
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // 1. Obtener apoderado vinculado al alumno con datos anteriores
+        const [relRows] = await connection.query(
+            `SELECT aa.id, aa.apoderado_id, aa.parentesco,
+                    ap.rut as ap_rut, ap.nombres as ap_nombres, ap.apellidos as ap_apellidos,
+                    ap.email as ap_email, ap.telefono as ap_telefono, ap.direccion as ap_direccion
+             FROM tb_apoderado_alumno aa
+             JOIN tb_apoderados ap ON aa.apoderado_id = ap.id
+             WHERE aa.alumno_id = ? AND aa.activo = 1
+             ORDER BY aa.es_apoderado_titular DESC LIMIT 1`,
+            [alumnoId]
+        );
+
+        if (relRows.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, error: 'No hay apoderado vinculado a este alumno' });
+        }
+
+        const anterior = relRows[0];
+        const { id: relacionId, apoderado_id } = anterior;
+
+        // 2. Actualizar tb_apoderados
+        await connection.query(`
+            UPDATE tb_apoderados
+            SET rut = ?, nombres = ?, apellidos = ?, email = ?, telefono = ?, direccion = ?
+            WHERE id = ?
+        `, [rut, nombres, apellidos, email || null, telefono || null, direccion || null, apoderado_id]);
+
+        // 3. Actualizar parentesco en tb_apoderado_alumno
+        if (parentesco) {
+            await connection.query(
+                'UPDATE tb_apoderado_alumno SET parentesco = ? WHERE id = ?',
+                [parentesco, relacionId]
+            );
+        }
+
+        // 4. Registrar en tb_log_actividades
+        await connection.query(`
+            INSERT INTO tb_log_actividades
+            (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+             entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+            VALUES (NULL, 'administrador', 'Administrador', 'editar', 'apoderados', ?, 'apoderado', ?, ?, ?, 1)
+        `, [
+            `Apoderado editado: ${anterior.ap_nombres} ${anterior.ap_apellidos}`,
+            apoderado_id,
+            JSON.stringify({ rut: anterior.ap_rut, nombres: anterior.ap_nombres, apellidos: anterior.ap_apellidos, email: anterior.ap_email, telefono: anterior.ap_telefono, direccion: anterior.ap_direccion, parentesco: anterior.parentesco }),
+            JSON.stringify({ rut, nombres, apellidos, email, telefono, direccion, parentesco })
+        ]);
+
+        await connection.commit();
+        res.json({ success: true, message: 'Apoderado actualizado correctamente' });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error al actualizar apoderado:', error);
+        res.status(500).json({ success: false, error: 'Error al actualizar apoderado' });
     } finally {
         connection.release();
     }
@@ -1160,6 +1260,19 @@ app.post('/api/asignaturas', async (req, res) => {
             VALUES (?, ?, ?, ?, 1)
         `, [nombre, codigo || null, descripcion || null, establecimiento_id]);
 
+        // Registrar en tb_log_actividades
+        await pool.query(`
+            INSERT INTO tb_log_actividades
+            (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+             entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+            VALUES (NULL, 'administrador', 'Administrador', 'crear', 'asignaturas', ?, 'asignatura', ?, NULL, ?, ?)
+        `, [
+            `Asignatura creada: ${nombre}`,
+            result.insertId,
+            JSON.stringify({ nombre, codigo, descripcion }),
+            establecimiento_id
+        ]);
+
         res.json({
             success: true,
             message: 'Asignatura creada correctamente',
@@ -1174,6 +1287,7 @@ app.post('/api/asignaturas', async (req, res) => {
 // DELETE /api/asignaturas/:id - Eliminar asignatura (soft delete)
 app.delete('/api/asignaturas/:id', async (req, res) => {
     const { id } = req.params;
+    const { establecimiento_id = 1 } = req.body || {};
 
     try {
         // Verificar si la asignatura tiene docentes asignados activos
@@ -1189,7 +1303,25 @@ app.delete('/api/asignaturas/:id', async (req, res) => {
             });
         }
 
+        // Obtener datos antes de eliminar
+        const [asigActual] = await pool.query('SELECT nombre, codigo, descripcion FROM tb_asignaturas WHERE id = ?', [id]);
+
         await pool.query('UPDATE tb_asignaturas SET activo = 0 WHERE id = ?', [id]);
+
+        // Registrar en tb_log_actividades
+        if (asigActual.length > 0) {
+            await pool.query(`
+                INSERT INTO tb_log_actividades
+                (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+                 entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+                VALUES (NULL, 'administrador', 'Administrador', 'eliminar', 'asignaturas', ?, 'asignatura', ?, ?, NULL, ?)
+            `, [
+                `Asignatura eliminada: ${asigActual[0].nombre}`,
+                id,
+                JSON.stringify(asigActual[0]),
+                establecimiento_id
+            ]);
+        }
 
         res.json({ success: true, message: 'Asignatura eliminada correctamente' });
     } catch (error) {
@@ -1366,6 +1498,19 @@ app.post('/api/docentes/agregar', async (req, res) => {
                 }
             }
         }
+
+        // Registrar en tb_log_actividades
+        await connection.query(`
+            INSERT INTO tb_log_actividades
+            (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+             entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+            VALUES (NULL, 'administrador', 'Administrador', 'crear', 'docentes', ?, 'docente', ?, NULL, ?, ?)
+        `, [
+            yaRegistrado ? `Docente existente agregado al establecimiento: ${nombres} ${apellidos}` : `Docente pre-registrado: ${nombres} ${apellidos} (RUT: ${rut})`,
+            docenteId || 0,
+            JSON.stringify({ rut, nombres, apellidos, email, asignaturas, docente_existente: yaRegistrado }),
+            establecimiento_id
+        ]);
 
         await connection.commit();
 
@@ -2021,9 +2166,9 @@ app.put('/api/notas/:notaId', async (req, res) => {
     const { nota, trimestre, fecha_evaluacion, comentario, es_pendiente } = req.body;
 
     try {
-        // Verificar que la nota existe
+        // Verificar que la nota existe y obtener datos anteriores
         const [notaExistente] = await pool.query(
-            'SELECT id FROM tb_notas WHERE id = ? AND activo = 1',
+            'SELECT n.id, n.nota, n.trimestre, n.fecha_evaluacion, n.comentario, n.es_pendiente, n.alumno_id, n.asignatura_id, n.establecimiento_id, a.nombres as alumno_nombres, a.apellidos as alumno_apellidos FROM tb_notas n LEFT JOIN tb_alumnos a ON n.alumno_id = a.id WHERE n.id = ? AND n.activo = 1',
             [notaId]
         );
 
@@ -2033,6 +2178,8 @@ app.put('/api/notas/:notaId', async (req, res) => {
                 error: 'Nota no encontrada'
             });
         }
+
+        const notaAnterior = notaExistente[0];
 
         // Validar nota si no es pendiente
         if (!es_pendiente && nota !== null && nota !== undefined) {
@@ -2064,6 +2211,20 @@ app.put('/api/notas/:notaId', async (req, res) => {
             notaId
         ]);
 
+        // Registrar en tb_log_actividades
+        await pool.query(`
+            INSERT INTO tb_log_actividades
+            (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+             entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+            VALUES (NULL, 'docente', 'Docente', 'editar', 'notas', ?, 'nota', ?, ?, ?, ?)
+        `, [
+            `Nota editada de ${notaAnterior.alumno_nombres} ${notaAnterior.alumno_apellidos}: ${notaAnterior.nota} → ${es_pendiente ? 'pendiente' : nota}`,
+            notaId,
+            JSON.stringify({ nota: notaAnterior.nota, trimestre: notaAnterior.trimestre, fecha_evaluacion: notaAnterior.fecha_evaluacion, comentario: notaAnterior.comentario, es_pendiente: notaAnterior.es_pendiente }),
+            JSON.stringify({ nota: es_pendiente ? null : nota, trimestre, fecha_evaluacion, comentario, es_pendiente: es_pendiente ? 1 : 0 }),
+            notaAnterior.establecimiento_id || 1
+        ]);
+
         res.json({
             success: true,
             message: 'Nota actualizada correctamente'
@@ -2079,9 +2240,9 @@ app.delete('/api/notas/:notaId', async (req, res) => {
     const { notaId } = req.params;
 
     try {
-        // Verificar que la nota existe
+        // Obtener datos antes de eliminar
         const [notaExistente] = await pool.query(
-            'SELECT id FROM tb_notas WHERE id = ? AND activo = 1',
+            'SELECT n.id, n.nota, n.trimestre, n.alumno_id, n.asignatura_id, n.establecimiento_id, n.tipo_evaluacion_id, a.nombres as alumno_nombres, a.apellidos as alumno_apellidos FROM tb_notas n LEFT JOIN tb_alumnos a ON n.alumno_id = a.id WHERE n.id = ? AND n.activo = 1',
             [notaId]
         );
 
@@ -2092,6 +2253,8 @@ app.delete('/api/notas/:notaId', async (req, res) => {
             });
         }
 
+        const notaAnterior = notaExistente[0];
+
         // Soft delete - marcar como inactivo
         await pool.query(`
             UPDATE tb_notas
@@ -2099,6 +2262,19 @@ app.delete('/api/notas/:notaId', async (req, res) => {
                 fecha_modificacion = NOW()
             WHERE id = ?
         `, [notaId]);
+
+        // Registrar en tb_log_actividades
+        await pool.query(`
+            INSERT INTO tb_log_actividades
+            (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+             entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+            VALUES (NULL, 'docente', 'Docente', 'eliminar', 'notas', ?, 'nota', ?, ?, NULL, ?)
+        `, [
+            `Nota eliminada de ${notaAnterior.alumno_nombres} ${notaAnterior.alumno_apellidos}: ${notaAnterior.nota} (T${notaAnterior.trimestre})`,
+            notaId,
+            JSON.stringify({ nota: notaAnterior.nota, trimestre: notaAnterior.trimestre, alumno_id: notaAnterior.alumno_id, asignatura_id: notaAnterior.asignatura_id }),
+            notaAnterior.establecimiento_id || 1
+        ]);
 
         res.json({
             success: true,
@@ -3138,7 +3314,11 @@ app.post('/api/asistencia', async (req, res) => {
 
         let asistenciaId;
 
+        let estadoAnterior = null;
         if (existente.length > 0) {
+            // Obtener estado anterior
+            const [previo] = await pool.query('SELECT estado, observacion FROM tb_asistencia WHERE id = ?', [existente[0].id]);
+            estadoAnterior = previo.length > 0 ? previo[0] : null;
             // Actualizar registro existente
             await pool.query(`
                 UPDATE tb_asistencia
@@ -3161,6 +3341,21 @@ app.post('/api/asistencia', async (req, res) => {
                 motivo_ausencia || null, observacion || null, registrado_por || null]);
             asistenciaId = result.insertId;
         }
+
+        // Registrar en tb_log_actividades
+        await pool.query(`
+            INSERT INTO tb_log_actividades
+            (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+             entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+            VALUES (NULL, 'docente', 'Docente', ?, 'asistencia', ?, 'asistencia', ?, ?, ?, ?)
+        `, [
+            estadoAnterior ? 'editar' : 'crear',
+            `Asistencia ${estadoAnterior ? 'editada' : 'registrada'}: alumno ${alumno_id}, fecha ${fecha}, estado ${estado}`,
+            asistenciaId,
+            estadoAnterior ? JSON.stringify(estadoAnterior) : null,
+            JSON.stringify({ alumno_id, curso_id, fecha, estado }),
+            establecimiento_id
+        ]);
 
         res.json({
             success: true,
@@ -3233,6 +3428,18 @@ app.post('/api/asistencia/masivo', async (req, res) => {
                 registrosCreados++;
             }
         }
+
+        // Registrar en tb_log_actividades (resumen de la operación masiva)
+        await connection.query(`
+            INSERT INTO tb_log_actividades
+            (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+             entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+            VALUES (NULL, 'docente', 'Docente', 'crear', 'asistencia', ?, 'asistencia', NULL, NULL, ?, ?)
+        `, [
+            `Asistencia masiva: curso ${curso_id}, fecha ${fecha}, ${registrosCreados} nuevos, ${registrosActualizados} actualizados`,
+            JSON.stringify({ curso_id, fecha, total_alumnos: asistencias.length, registros_creados: registrosCreados, registros_actualizados: registrosActualizados }),
+            establecimiento_id
+        ]);
 
         await connection.commit();
 
@@ -3646,9 +3853,29 @@ app.delete('/api/comunicados/:id', async (req, res) => {
     const { establecimiento_id = 1 } = req.body || {};
 
     try {
+        // Obtener datos antes de eliminar
+        const [comAnterior] = await pool.query(
+            'SELECT titulo, tipo, prioridad, remitente_id FROM tb_comunicados WHERE id = ?', [id]
+        );
+
         await pool.query(`
             UPDATE tb_comunicados SET activo = 0 WHERE id = ? AND establecimiento_id = ?
         `, [id, establecimiento_id]);
+
+        // Registrar en tb_log_actividades
+        if (comAnterior.length > 0) {
+            await pool.query(`
+                INSERT INTO tb_log_actividades
+                (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+                 entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+                VALUES (NULL, 'administrador', 'Administrador', 'eliminar', 'comunicados', ?, 'comunicado', ?, ?, NULL, ?)
+            `, [
+                `Comunicado eliminado: ${comAnterior[0].titulo}`,
+                id,
+                JSON.stringify(comAnterior[0]),
+                establecimiento_id
+            ]);
+        }
 
         res.json({ success: true, message: 'Comunicado eliminado' });
     } catch (error) {
