@@ -84,6 +84,18 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
   const isStacked = isMobile || isTablet; // Móvil y Tablet apilan las columnas
   const { dropdownAbierto, setDropdownAbierto } = useDropdown();
 
+  // Formato dos líneas para móvil: apellidos arriba, nombres abajo
+  const formatNombreMovil = (alumno) => {
+    if (!alumno.id) return alumno.nombres; // "Todos"
+    return (
+      <span>
+        <span style={{ fontWeight: 500 }}>{alumno.apellidos}</span>
+        <br />
+        <span style={{ fontSize: '11px', color: '#64748b' }}>{alumno.nombres}</span>
+      </span>
+    );
+  };
+
   const trimestres = [
     { id: '1', nombre: '1er Trimestre' },
     { id: '2', nombre: '2do Trimestre' },
@@ -436,6 +448,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
           disabled={!cursoSeleccionado || cargandoAlumnos}
           placeholder={cargandoAlumnos ? 'Cargando...' : 'Buscar...'}
           onDropdownOpen={() => setDropdownAbierto(null)}
+          formatNombre={formatNombreMovil}
         />
         <SelectMovil
           label="Trimestre"
@@ -503,99 +516,94 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
          Fila 3: Nota (7)
       */}
 
-      <div style={{ order: isTablet ? 1 : 0, display: 'contents' }}>
-        {cargandoCursos ? (
-          <div className="form-group">
-            <label>Curso</label>
-            <div style={{ padding: '8px', color: '#64748b', fontSize: '13px' }}>Cargando...</div>
-          </div>
-        ) : (
-          <SelectNativo
-            label="Curso"
-            value={cursoSeleccionado}
-            onChange={(e) => {
-              const curso = cursos.find(c => c.id.toString() === e.target.value);
-              handleCursoChange(e.target.value, curso?.nombre || '');
-            }}
-            options={cursos}
-            placeholder="Seleccionar curso"
-          />
-        )}
-      </div>
-
-      <div style={{ order: isTablet ? 2 : 0, display: 'contents' }}>
+      {cargandoCursos ? (
+        <div className="form-group" style={{ order: isTablet ? 1 : 0 }}>
+          <label>Curso</label>
+          <div style={{ padding: '8px', color: '#64748b', fontSize: '13px' }}>Cargando...</div>
+        </div>
+      ) : (
         <SelectNativo
-          label="Asignatura"
-          value={asignaturaSeleccionada}
+          label="Curso"
+          value={cursoSeleccionado}
           onChange={(e) => {
-            const asig = asignaturas.find(a => a.id.toString() === e.target.value);
-            setAsignaturaSeleccionada(e.target.value);
-            setAsignaturaNombre(asig?.nombre || '');
+            const curso = cursos.find(c => c.id.toString() === e.target.value);
+            handleCursoChange(e.target.value, curso?.nombre || '');
           }}
-          options={asignaturas}
-          placeholder={cargandoAsignaturas ? 'Cargando...' : (cursoSeleccionado ? 'Seleccionar' : 'Primero seleccione curso')}
-          disabled={!cursoSeleccionado || cargandoAsignaturas}
+          options={cursos}
+          placeholder="Seleccionar curso"
+          containerStyle={{ order: isTablet ? 1 : 0 }}
         />
-      </div>
+      )}
 
-      <div style={{ order: isTablet ? 4 : 0, display: 'contents' }}>
-        <AutocompleteAlumno
-          alumnos={alumnos}
-          alumnoSeleccionado={alumnoSeleccionado}
-          busqueda={busquedaAlumno}
-          onBusquedaChange={(val) => { setBusquedaAlumno(val); setAlumnoSeleccionado(''); }}
-          onSeleccionar={handleSeleccionarAlumno}
-          disabled={!cursoSeleccionado || cargandoAlumnos}
-          placeholder={cargandoAlumnos ? 'Cargando...' : 'Buscar Alumno'}
-        />
-      </div>
+      <SelectNativo
+        label="Asignatura"
+        value={asignaturaSeleccionada}
+        onChange={(e) => {
+          const asig = asignaturas.find(a => a.id.toString() === e.target.value);
+          setAsignaturaSeleccionada(e.target.value);
+          setAsignaturaNombre(asig?.nombre || '');
+        }}
+        options={asignaturas}
+        placeholder={cargandoAsignaturas ? 'Cargando...' : (cursoSeleccionado ? 'Seleccionar' : 'Primero seleccione curso')}
+        disabled={!cursoSeleccionado || cargandoAsignaturas}
+        containerStyle={{ order: isTablet ? 2 : 0 }}
+      />
 
-      <div style={{ order: isTablet ? 3 : 0, display: 'contents' }}>
-        <SelectNativo
-          label="Trimestre"
-          value={trimestre}
-          onChange={(e) => {
-            setTrimestre(e.target.value);
-            const nombres = { '1': '1er Trimestre', '2': '2do Trimestre', '3': '3er Trimestre' };
-            setTrimestreNombre(nombres[e.target.value] || '');
-          }}
-          options={trimestres}
-          placeholder="Seleccionar"
-        />
-      </div>
+      <AutocompleteAlumno
+        alumnos={alumnos}
+        alumnoSeleccionado={alumnoSeleccionado}
+        busqueda={busquedaAlumno}
+        onBusquedaChange={(val) => { setBusquedaAlumno(val); setAlumnoSeleccionado(''); }}
+        onSeleccionar={handleSeleccionarAlumno}
+        disabled={!cursoSeleccionado || cargandoAlumnos}
+        placeholder={cargandoAlumnos ? 'Cargando...' : 'Buscar Alumno'}
+        containerStyle={{ order: isTablet ? 4 : 0 }}
+      />
 
-      <div style={{ order: isTablet ? 5 : 0, display: 'contents' }}>
-        <SelectNativo
-          label="Tipo Evaluacion"
-          value={tipoEvaluacion}
-          onChange={(e) => {
-            const tipo = tiposEvaluacion.find(t => t.id.toString() === e.target.value);
-            setTipoEvaluacion(e.target.value);
-            setTipoEvaluacionNombre(tipo?.nombre || '');
-          }}
-          options={tiposEvaluacion}
-          placeholder="Seleccionar"
-        />
-      </div>
+      <SelectNativo
+        label="Trimestre"
+        value={trimestre}
+        onChange={(e) => {
+          setTrimestre(e.target.value);
+          const nombres = { '1': '1er Trimestre', '2': '2do Trimestre', '3': '3er Trimestre' };
+          setTrimestreNombre(nombres[e.target.value] || '');
+        }}
+        options={trimestres}
+        placeholder="Seleccionar"
+        containerStyle={{ order: isTablet ? 3 : 0 }}
+      />
 
-      <div className="form-group" style={{ order: isTablet ? 6 : 0 }}>
-        <label htmlFor="fechaNuevaNota">Fecha</label>
+      <SelectNativo
+        label="Tipo Evaluacion"
+        value={tipoEvaluacion}
+        onChange={(e) => {
+          const tipo = tiposEvaluacion.find(t => t.id.toString() === e.target.value);
+          setTipoEvaluacion(e.target.value);
+          setTipoEvaluacionNombre(tipo?.nombre || '');
+        }}
+        options={tiposEvaluacion}
+        placeholder="Seleccionar"
+        containerStyle={{ order: isTablet ? 5 : 0 }}
+      />
+
+      <div className="form-group" style={{ order: isTablet ? 6 : 0, position: 'relative', marginBottom: '15px' }}>
+        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Fecha</label>
         <input
           type="date"
-          id="fechaNuevaNota"
           className="form-control"
+          style={{ height: '30px', fontSize: '13px', minHeight: 'unset', padding: '0 8px', border: '1px solid #ced4da', borderRadius: '0.25rem' }}
           value={fecha}
           onChange={(e) => setFecha(e.target.value)}
           required
         />
       </div>
 
-      <div className="form-group" style={{ order: isTablet ? 7 : 0 }}>
-        <label htmlFor="notaNueva">Nota (1.0 - 7.0)</label>
+      <div className="form-group" style={{ order: isTablet ? 7 : 0, position: 'relative', marginBottom: '15px' }}>
+        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Nota (1.0 - 7.0)</label>
         <input
           type="number"
-          id="notaNueva"
           className="form-control"
+          style={{ height: '30px', fontSize: '13px', minHeight: 'unset', padding: '0 8px', border: '1px solid #ced4da', borderRadius: '0.25rem' }}
           min="1.0"
           max="7.0"
           step="0.1"
@@ -611,11 +619,11 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
 
   // Componente de Ultimas Notas
   const TablaUltimasNotas = () => (
-    <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
       <div className="card-header">
         <h3>Ultimas Notas</h3>
       </div>
-      <div className="card-body" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div className="card-body" style={{ flex: 1, overflow: 'visible', display: 'flex', flexDirection: 'column' }}>
         {/* Filtros */}
         <div className="filtros-notas-recientes" style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           {/* ... filtros (mismo código) ... */}
@@ -635,6 +643,24 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
                 onToggle={() => setDropdownAbierto(dropdownAbierto === 'filtroCurso' ? null : 'filtroCurso')}
                 onClose={() => setDropdownAbierto(null)}
               />
+              {filtroCurso && (
+                <AutocompleteAlumno
+                  alumnos={[{ id: '', nombres: 'Todos', apellidos: '' }, ...alumnosFiltro]}
+                  alumnoSeleccionado={filtroAlumno}
+                  busqueda={filtroAlumnoNombre}
+                  onBusquedaChange={(val) => { setFiltroAlumnoNombre(val); setFiltroAlumno(''); }}
+                  onSeleccionar={(alumno) => {
+                    setFiltroAlumno(alumno.id ? alumno.id.toString() : '');
+                    setFiltroAlumnoNombre(alumno.id ? `${alumno.apellidos}, ${alumno.nombres}` : '');
+                  }}
+                  disabled={false}
+                  placeholder="Todos"
+                  label="Alumno"
+                  containerStyle={{ flex: 2, marginBottom: 0 }}
+                  onDropdownOpen={() => setDropdownAbierto(null)}
+                  formatNombre={formatNombreMovil}
+                />
+              )}
             </>
           ) : (
             <>
@@ -649,20 +675,19 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
               />
 
               {filtroCurso && (
-                <div className="form-group" style={{ flex: 1 }}>
-                  <label>Alumno</label>
-                  <select
-                    className="form-control"
-                    value={filtroAlumno}
-                    onChange={(e) => setFiltroAlumno(e.target.value)}
-                    style={{ fontSize: '13px' }}
-                  >
-                    <option value="">Todos</option>
-                    {alumnosFiltro.map(a => (
-                      <option key={a.id} value={a.id}>{a.apellidos}, {a.nombres}</option>
-                    ))}
-                  </select>
-                </div>
+                <AutocompleteAlumno
+                  alumnos={[{ id: '', nombres: 'Todos', apellidos: '' }, ...alumnosFiltro]}
+                  alumnoSeleccionado={filtroAlumno}
+                  busqueda={filtroAlumnoNombre}
+                  onBusquedaChange={(val) => { setFiltroAlumnoNombre(val); setFiltroAlumno(''); }}
+                  onSeleccionar={(alumno) => {
+                    setFiltroAlumno(alumno.id ? alumno.id.toString() : '');
+                    setFiltroAlumnoNombre(alumno.id ? `${alumno.apellidos}, ${alumno.nombres}` : '');
+                  }}
+                  disabled={false}
+                  placeholder="Todos"
+                  containerStyle={{ flex: 1, marginBottom: 0 }}
+                />
               )}
             </>
           )}
@@ -731,8 +756,16 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
                 }).map(n => (
                   <tr key={n.id}>
                     <td style={{ fontSize: showTabs ? '10px' : '12px', padding: showTabs ? '4px 2px' : undefined }}>{formatearFecha(n.fecha_evaluacion)}</td>
-                    <td style={{ fontSize: showTabs ? '10px' : '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: showTabs ? '90px' : '150px', padding: showTabs ? '4px 2px' : undefined }}>
-                      {n.alumno_apellidos}, {n.alumno_nombres?.split(' ')[0]}
+                    <td style={{ fontSize: showTabs ? '10px' : '13px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: showTabs ? '90px' : '150px', padding: showTabs ? '4px 2px' : undefined, whiteSpace: showTabs ? 'normal' : 'nowrap', lineHeight: showTabs ? '1.2' : undefined }}>
+                      {showTabs ? (
+                        <>
+                          <span style={{ fontWeight: 500 }}>{n.alumno_apellidos}</span>
+                          <br />
+                          <span style={{ color: '#64748b' }}>{n.alumno_nombres}</span>
+                        </>
+                      ) : (
+                        <>{n.alumno_apellidos}, {n.alumno_nombres?.split(' ')[0]}</>
+                      )}
                     </td>
                     {!showTabs && <td style={{ fontSize: '12px' }}>{formatearCurso(n.curso_nombre)}</td>}
                     <td style={{ fontSize: showTabs ? '10px' : '12px', padding: showTabs ? '4px 2px' : undefined }}>
@@ -799,11 +832,11 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
       <div className={isStacked ? "" : "two-columns"} style={{ height: '100%', alignItems: 'stretch', display: isStacked ? 'block' : 'grid' }}>
         {(!showTabs || pestanaActiva === 'registro') && (
           <div className="column" style={{ height: 'auto', marginBottom: isTablet ? '24px' : '0' }}>
-            <div className="card">
+            <div className="card" style={{ overflow: 'visible' }}>
               <div className="card-header">
                 <h3>Registro de Calificacion</h3>
               </div>
-              <div className="card-body">
+              <div className="card-body" style={{ overflow: 'visible' }}>
                 <form onSubmit={handleSubmit}>
                   {showTabs ? FormularioMovil() : FormularioDesktop()}
 
@@ -852,7 +885,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
             height: isTablet ? '500px' : (isMobile ? 'calc(100vh - 200px)' : '100%'),
             overflow: 'hidden'
           }}>
-            <TablaUltimasNotas />
+            {TablaUltimasNotas()}
           </div>
         )}
       </div>

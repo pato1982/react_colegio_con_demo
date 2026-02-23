@@ -343,14 +343,14 @@ function AsistenciaTab({ docenteId, establecimientoId, usuarioId }) {
               </div>
             </div>
 
-            {/* Botones a la derecha */}
-            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingBottom: '15px' }}>
-              <button className="btn btn-secondary" onClick={limpiarFiltros} style={{ height: '30px', fontSize: '13px', padding: '0 15px', display: 'flex', alignItems: 'center' }}>Limpiar</button>
+            {/* Botones */}
+            <div style={{ flex: isMobile ? 'auto' : 1, display: 'flex', justifyContent: isMobile ? 'center' : 'flex-end', gap: isMobile ? '8px' : '10px', paddingBottom: '15px' }}>
+              <button className="btn btn-secondary" onClick={limpiarFiltros} style={{ height: isMobile ? '26px' : '30px', fontSize: isMobile ? '11px' : '13px', padding: isMobile ? '0 10px' : '0 15px', display: 'flex', alignItems: 'center' }}>Limpiar</button>
               <button
                 className="btn btn-primary"
                 onClick={handleCargarLista}
                 disabled={cargandoAlumnos || !cursoSeleccionado}
-                style={{ height: '30px', fontSize: '13px', padding: '0 15px', display: 'flex', alignItems: 'center' }}
+                style={{ height: isMobile ? '26px' : '30px', fontSize: isMobile ? '11px' : '13px', padding: isMobile ? '0 10px' : '0 15px', display: 'flex', alignItems: 'center' }}
               >
                 {cargandoAlumnos ? 'Cargando...' : 'Cargar Lista'}
               </button>

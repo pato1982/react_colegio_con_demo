@@ -10,7 +10,9 @@ function AutocompleteAlumno({
   placeholder = 'Buscar alumno...',
   label = 'Alumno',
   mostrarLabel = true,
-  onDropdownOpen
+  onDropdownOpen,
+  containerStyle = {},
+  formatNombre
 }) {
   const [mostrarDropdown, setMostrarDropdown] = useState(false);
   const containerRef = useRef(null);
@@ -73,19 +75,27 @@ function AutocompleteAlumno({
   };
 
   return (
-    <div className="form-group">
-      {mostrarLabel && <label>{label}</label>}
-      <div className="docente-autocomplete-container" ref={containerRef}>
+    <div className="form-group" ref={containerRef} style={{ position: 'relative', marginBottom: '15px', ...containerStyle }}>
+      {mostrarLabel && <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>{label}</label>}
+      <div className="docente-autocomplete-container">
         <input
           type="text"
           className="form-control"
+          style={{
+            height: '30px',
+            fontSize: '13px',
+            minHeight: 'unset',
+            padding: '0 36px 0 8px',
+            border: '1px solid #ced4da',
+            borderRadius: '0.25rem'
+          }}
           placeholder={disabled ? 'Seleccione curso' : placeholder}
           value={busqueda}
           onChange={handleInputChange}
           onFocus={handleFocus}
           onClick={handleFocus}
-          onMouseDown={handleFocus} // Refuerzo para click
-          onTouchStart={handleFocus} // Refuerzo para touch
+          onMouseDown={handleFocus}
+          onTouchStart={handleFocus}
           disabled={disabled}
           autoComplete="off"
         />
@@ -107,7 +117,7 @@ function AutocompleteAlumno({
                 className="docente-autocomplete-item"
                 onClick={() => handleSeleccionar(alumno)}
               >
-                {alumno.nombres} {alumno.apellidos}
+                {formatNombre ? formatNombre(alumno) : `${alumno.nombres} ${alumno.apellidos}`}
               </div>
             ))}
             {alumnosFiltrados.length === 0 && (

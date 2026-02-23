@@ -47,7 +47,18 @@
       "Bash(export PATH=\"/mnt/c/Program Files/nodejs:$PATH\")",
       "Bash(node.exe:*)",
       "Bash(tee:*)",
-      "Bash(ssh -i /tmp/id_rsa_vps -p 25404 -o StrictHostKeyChecking=no root@45.236.130.25 \"echo ''=== SERVIDOR OK ==='' && uptime && echo '''' && echo ''=== ESTADO PM2 ==='' && pm2 list 2>/dev/null || echo ''pm2 no encontrado'' && echo '''' && echo ''=== MYSQL ==='' && mysql -u root -p''9Il2cmw4PgSQ10V'' portal_estudiantil -e ''SELECT COUNT\\(*\\) as total_tablas FROM information_schema.tables WHERE table_schema=\"\"portal_estudiantil\"\";''\")"
+      "Bash(ssh -i /tmp/id_rsa_vps -p 25404 -o StrictHostKeyChecking=no root@45.236.130.25 \"echo ''=== SERVIDOR OK ==='' && uptime && echo '''' && echo ''=== ESTADO PM2 ==='' && pm2 list 2>/dev/null || echo ''pm2 no encontrado'' && echo '''' && echo ''=== MYSQL ==='' && mysql -u root -p''9Il2cmw4PgSQ10V'' portal_estudiantil -e ''SELECT COUNT\\(*\\) as total_tablas FROM information_schema.tables WHERE table_schema=\"\"portal_estudiantil\"\";''\")",
+      "Bash(ssh:*)",
+      "Bash(cmd.exe /c \"npx vite build 2>&1\")",
+      "Bash(/mnt/c/WINDOWS/system32/cmd.exe /c \"cd /d C:\\\\Users\\\\Telqway\\\\Desktop\\\\colegio-react && npx vite build 2>&1\")",
+      "Bash(powershell.exe -Command \"cd ''C:\\\\Users\\\\Telqway\\\\Desktop\\\\colegio-react''; npx vite build 2>&1\")",
+      "Bash(scp:*)",
+      "Bash(chmod:*)",
+      "Bash(cmd.exe /c \"npx react-scripts build 2>&1\")",
+      "Bash(git status:*)",
+      "Bash(git remote:*)",
+      "Bash(git rm:*)",
+      "Bash(head:*)"
     ]
   }
 }

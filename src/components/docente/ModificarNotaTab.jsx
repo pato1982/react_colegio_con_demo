@@ -11,7 +11,7 @@ import { apiFetch } from '../../utils/api';
 registerLocale('es', es);
 
 // Modal de edicion
-const ModalEditar = ({ nota, editNota, setEditNota, editTrimestre, setEditTrimestre, editFecha, setEditFecha, editComentario, setEditComentario, editPendiente, setEditPendiente, onGuardar, onCerrar, guardando }) => (
+const ModalEditar = ({ nota, editNota, setEditNota, editTrimestre, setEditTrimestre, editFecha, setEditFecha, editComentario, setEditComentario, editPendiente, setEditPendiente, onGuardar, onCerrar, guardando, isMobile }) => (
   <div className="modal-overlay" onClick={onCerrar} style={{ zIndex: 1200, alignItems: 'flex-start', paddingTop: '75px' }}>
     <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxHeight: 'calc(100vh - 90px)' }}>
       <div className="modal-header">
@@ -72,9 +72,9 @@ const ModalEditar = ({ nota, editNota, setEditNota, editTrimestre, setEditTrimes
           </div>
         </div>
         <div className="modal-footer">
-          <button type="button" className="btn btn-secondary" onClick={onCerrar} disabled={guardando}>Cancelar</button>
-          <button type="submit" className="btn btn-primary" disabled={guardando}>
-            {guardando ? 'Guardando...' : 'Guardar Cambios'}
+          <button type="button" className="btn btn-secondary" onClick={onCerrar} disabled={guardando} style={isMobile ? { height: '28px', fontSize: '11px', padding: '0 12px' } : {}}>Cancelar</button>
+          <button type="submit" className="btn btn-primary" disabled={guardando} style={isMobile ? { height: '28px', fontSize: '11px', padding: '0 12px' } : {}}>
+            {guardando ? 'Guardando...' : (isMobile ? 'Guardar' : 'Guardar Cambios')}
           </button>
         </div>
       </form>
@@ -834,6 +834,7 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
             onGuardar={guardarEdicion}
             onCerrar={() => setModalEditar(false)}
             guardando={guardando}
+            isMobile={isMobile}
           />
         )
       }
