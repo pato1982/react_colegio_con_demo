@@ -180,7 +180,7 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
         <div className="modal-body">
           {activeTab === 'alumno' && (
             <>
-              <div className="grid-responsive">
+              <div className="ficha-grid">
                 <div className="form-group">
                   <label>{isMobile ? 'Curso' : 'Curso Actual'}</label>
                   <select className="form-control" name="curso_id" value={formAlumno.curso_id} onChange={handleChange}>
@@ -201,7 +201,7 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
                   <input type="text" className="form-control" name="apellidos" value={formAlumno.apellidos} onChange={handleChange} />
                 </div>
                 <div className="form-group">
-                  <label>{isMobile ? 'Dirección' : 'Dirección'}</label>
+                  <label>Dirección</label>
                   <input type="text" className="form-control" name="direccion" value={formAlumno.direccion} onChange={handleChange} />
                 </div>
                 <div className="form-group">
@@ -212,12 +212,8 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
                     <option value="Otro">Otro</option>
                   </select>
                 </div>
-              </div>
-
-              {/* Sección Salud y Emergencia (Editable) */}
-              <div className="section-divider">{isMobile ? 'Salud / Emerg.' : 'Salud y Emergencia'}</div>
-              <div className="grid-responsive">
-                <div className="form-group">
+                <div className="section-divider fg-full">{isMobile ? 'Salud / Emerg.' : 'Salud y Emergencia'}</div>
+                <div className="form-group fg-full">
                   <label>Alergias</label>
                   <input type="text" className="form-control" name="alergias" value={formAlumno.alergias} onChange={handleChange} placeholder="Ninguna" />
                 </div>
@@ -242,7 +238,7 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
                   </select>
                 </div>
                 {formAlumno.tiene_nee === '1' && (
-                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <div className="form-group fg-full">
                     <label>Detalle NEE</label>
                     <input type="text" className="form-control" name="detalle_nee" value={formAlumno.detalle_nee} onChange={handleChange} placeholder="Especifique..." />
                   </div>
@@ -267,50 +263,48 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
 
           {activeTab === 'apoderado' && (
             datosCompletos.apoderado ? (
-              <>
-                <div className="grid-responsive">
-                  <div className="form-group">
-                    <label>RUT</label>
-                    <input type="text" className="form-control" name="rut" value={formApoderado.rut} onChange={handleChangeApoderado} />
-                  </div>
-                  <div className="form-group">
-                    <label>Nombres</label>
-                    <input type="text" className="form-control" name="nombres" value={formApoderado.nombres} onChange={handleChangeApoderado} />
-                  </div>
-                  <div className="form-group">
-                    <label>Apellidos</label>
-                    <input type="text" className="form-control" name="apellidos" value={formApoderado.apellidos} onChange={handleChangeApoderado} />
-                  </div>
-                  <div className="form-group">
-                    <label>Parentesco</label>
-                    <select className="form-control" name="parentesco" value={formApoderado.parentesco} onChange={handleChangeApoderado}>
-                      <option value="">Seleccionar...</option>
-                      <option value="padre">Padre</option>
-                      <option value="madre">Madre</option>
-                      <option value="abuelo">Abuelo</option>
-                      <option value="abuela">Abuela</option>
-                      <option value="tio">Tío</option>
-                      <option value="tia">Tía</option>
-                      <option value="hermano">Hermano</option>
-                      <option value="hermana">Hermana</option>
-                      <option value="tutor_legal">Tutor Legal</option>
-                      <option value="otro">Otro</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Email</label>
-                    <input type="email" className="form-control" name="email" value={formApoderado.email} onChange={handleChangeApoderado} />
-                  </div>
-                  <div className="form-group">
-                    <label>{isMobile ? 'Teléfono' : 'Teléfono'}</label>
-                    <input type="text" className="form-control" name="telefono" value={formApoderado.telefono} onChange={handleChangeApoderado} />
-                  </div>
-                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label>{isMobile ? 'Dirección' : 'Dirección'}</label>
-                    <input type="text" className="form-control" name="direccion" value={formApoderado.direccion} onChange={handleChangeApoderado} />
-                  </div>
+              <div className="ficha-grid">
+                <div className="form-group">
+                  <label>RUT</label>
+                  <input type="text" className="form-control" name="rut" value={formApoderado.rut} onChange={handleChangeApoderado} />
                 </div>
-              </>
+                <div className="form-group">
+                  <label>Parentesco</label>
+                  <select className="form-control" name="parentesco" value={formApoderado.parentesco} onChange={handleChangeApoderado}>
+                    <option value="">Seleccionar...</option>
+                    <option value="padre">Padre</option>
+                    <option value="madre">Madre</option>
+                    <option value="abuelo">Abuelo</option>
+                    <option value="abuela">Abuela</option>
+                    <option value="tio">Tío</option>
+                    <option value="tia">Tía</option>
+                    <option value="hermano">Hermano</option>
+                    <option value="hermana">Hermana</option>
+                    <option value="tutor_legal">Tutor Legal</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Nombres</label>
+                  <input type="text" className="form-control" name="nombres" value={formApoderado.nombres} onChange={handleChangeApoderado} />
+                </div>
+                <div className="form-group">
+                  <label>Apellidos</label>
+                  <input type="text" className="form-control" name="apellidos" value={formApoderado.apellidos} onChange={handleChangeApoderado} />
+                </div>
+                <div className="form-group fg-full">
+                  <label>Email</label>
+                  <input type="email" className="form-control" name="email" value={formApoderado.email} onChange={handleChangeApoderado} />
+                </div>
+                <div className="form-group fg-full">
+                  <label>Teléfono</label>
+                  <input type="text" className="form-control" name="telefono" value={formApoderado.telefono} onChange={handleChangeApoderado} />
+                </div>
+                <div className="form-group fg-full">
+                  <label>Dirección</label>
+                  <input type="text" className="form-control" name="direccion" value={formApoderado.direccion} onChange={handleChangeApoderado} />
+                </div>
+              </div>
             ) : (
               <p className="missing-data-msg">No hay apoderado vinculado a este alumno.</p>
             )
@@ -352,13 +346,17 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
         .modal-xl .form-control { font-size: 0.9rem; padding: 6px 10px; height: auto; }
         .modal-xl .modal-tab-btn { padding: 8px 12px; font-size: 0.9rem; }
         .modal-xl .modal-body { padding: 0 20px 15px; flex: 1; overflow-y: auto; }
-        .modal-xl .modal-footer { padding: 12px 20px; }
+        .modal-xl .modal-footer { padding: 8px 20px; }
+        @media (max-width: 639px) {
+            .modal-xl .modal-footer { padding: 6px 14px; }
+            .modal-xl .modal-body { padding: 0 14px 6px; }
+        }
 
         /* Grid System: 1 col on mobile, 2 on small tablet, 3 on desktop */
-        .grid-responsive { 
-            display: grid; 
-            grid-template-columns: 1fr; 
-            gap: 12px; /* Gap reducido */
+        .grid-responsive {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
             margin-bottom: 15px;
         }
         @media (min-width: 640px) {
@@ -366,13 +364,31 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
         }
         @media (min-width: 768px) {
             .grid-responsive { grid-template-columns: 1fr 1fr 1fr; }
-            .grid-responsive.info-grid { grid-template-columns: 1fr 1fr; } /* Apoderado: 2 columnas */
+            .grid-responsive.info-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* Ficha grid: 2 cols en móvil, fg-full ocupa fila completa solo en móvil */
+        .ficha-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        @media (max-width: 639px) {
+            .ficha-grid .fg-full { grid-column: 1 / -1; }
+        }
+        @media (min-width: 640px) {
+            .ficha-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (min-width: 768px) {
+            .ficha-grid { grid-template-columns: 1fr 1fr 1fr; }
         }
         
         .section-divider {
             font-size: 0.85rem; font-weight: 700; color: #4b5563;
-            border-bottom: 2px solid #e5e7eb; padding-bottom: 4px; margin: 20px 0 12px 0;
+            border-bottom: 2px solid #e5e7eb; padding-bottom: 4px; margin: 10px 0 2px 0;
             text-transform: uppercase; letter-spacing: 0.5px;
+            grid-column: 1 / -1;
         }
         
         /* Estilos de inputs en el modal para que se ajusten al grid */
@@ -392,7 +408,7 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
         .badge-warning { background: #fff7ed; color: #c2410c; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; border: 1px solid #fed7aa; display: inline-block;}
         .highlight { color: #2563eb; font-weight: 600; }
         
-        .matricula-badge { margin-top: 15px; padding: 10px; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; color: #166534; font-size: 0.9em; text-align: center; font-weight: 500; }
+        .matricula-badge { margin-top: 5px; padding: 6px 10px; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0; color: #166534; font-size: 0.85em; text-align: center; font-weight: 500; }
         .missing-data-msg { text-align: center; color: #ef4444; background: #fef2f2; padding: 10px; border-radius: 6px; margin-top: 15px; font-size: 0.9em; }
 
         .modal-tabs { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 20px; padding: 0 20px; }

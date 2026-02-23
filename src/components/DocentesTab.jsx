@@ -5,6 +5,7 @@ import { apiFetch } from '../utils/api';
 
 // Modal para editar docente
 const ModalEditarDocente = ({ docente, asignaturas, onGuardar, onCerrar }) => {
+  const { isMobile } = useResponsive();
   const [formEditar, setFormEditar] = useState({
     rut: docente?.rut || '',
     nombres: docente?.nombres || '',
@@ -74,7 +75,7 @@ const ModalEditarDocente = ({ docente, asignaturas, onGuardar, onCerrar }) => {
     <div className="modal-overlay" onClick={onCerrar}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Editar Docente</h3>
+          <h3 style={{ color: 'white' }}>Editar Docente</h3>
           <button className="modal-close" onClick={onCerrar}>&times;</button>
         </div>
         <div className="modal-body">
@@ -97,7 +98,7 @@ const ModalEditarDocente = ({ docente, asignaturas, onGuardar, onCerrar }) => {
               }
             }
           `}</style>
-          <div className="form-row">
+          <div className="form-row form-row-mobile-2col">
             <div className="form-group">
               <label>RUT</label>
               <input type="text" className="form-control" name="rut" value={formEditar.rut} onChange={handleChange} />
@@ -124,10 +125,10 @@ const ModalEditarDocente = ({ docente, asignaturas, onGuardar, onCerrar }) => {
             </div>
           </div>
         </div>
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onCerrar} disabled={guardando}>Cancelar</button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={guardando}>
-            {guardando ? 'Guardando...' : 'Guardar Cambios'}
+        <div className="modal-footer" style={isMobile ? { padding: '6px 14px' } : {}}>
+          <button className="btn btn-secondary" onClick={onCerrar} disabled={guardando} style={isMobile ? { fontSize: '12px', padding: '6px 12px' } : {}}>Cancelar</button>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={guardando} style={isMobile ? { fontSize: '12px', padding: '6px 12px' } : {}}>
+            {guardando ? 'Guardando...' : (isMobile ? 'Guardar' : 'Guardar Cambios')}
           </button>
         </div>
       </div>
