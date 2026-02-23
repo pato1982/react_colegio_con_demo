@@ -483,46 +483,56 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
         <div className="card-header">
           <h3>Calificaciones del Curso {consultado && asignaturaNombre && `- ${asignaturaNombre}`}</h3>
         </div>
-        <div className="card-body">
-          <div className="docente-tabla-trimestres-container">
-            <table className="docente-tabla docente-tabla-trimestres">
+        <div className="card-body" style={{ padding: showMobile ? undefined : '12px' }}>
+          <div className="vn-tabla-container">
+            <table className="vn-tabla">
+              <colgroup>
+                <col style={{ width: '28px' }} />
+                <col style={{ width: '110px' }} />
+                {[1,2,3].map(t => (
+                  <React.Fragment key={t}>
+                    {[1,2,3,4,5,6,7,8].map(n => <col key={n} style={{ width: '28px' }} />)}
+                    <col style={{ width: '34px' }} />
+                  </React.Fragment>
+                ))}
+                <col style={{ width: '36px' }} />
+                <col style={{ width: '34px' }} />
+              </colgroup>
               <thead>
                 <tr>
-                  <th rowSpan="2" className="th-fixed">N</th>
-                  <th rowSpan="2" className="th-fixed th-alumno">Alumno</th>
-                  <th colSpan="9" className="th-trimestre">Trimestre 1</th>
-                  <th colSpan="9" className="th-trimestre">Trimestre 2</th>
-                  <th colSpan="9" className="th-trimestre">Trimestre 3</th>
-                  <th rowSpan="2" className="th-fixed th-final" style={{ width: '45px' }}>PROM</th>
-                  <th rowSpan="2" className="th-fixed" style={{ width: '40px' }}>APR</th>
+                  <th rowSpan="2" className="vn-th-fijo">N</th>
+                  <th rowSpan="2" className="vn-th-fijo vn-th-alumno">Alumno</th>
+                  <th colSpan="9" className="vn-th-trim">Trimestre 1</th>
+                  <th colSpan="9" className="vn-th-trim">Trimestre 2</th>
+                  <th colSpan="9" className="vn-th-trim">Trimestre 3</th>
+                  <th rowSpan="2" className="vn-th-fijo vn-th-final">PROM</th>
+                  <th rowSpan="2" className="vn-th-fijo">APR</th>
                 </tr>
                 <tr>
-                  <NotasHeaders />
-                  <NotasHeaders />
-                  <NotasHeaders />
+                  {[1,2,3].map(t => (
+                    <React.Fragment key={t}>
+                      {[1,2,3,4,5,6,7,8].map(n => <th key={n} className="vn-th-nota">N{n}</th>)}
+                      <th className="vn-th-nota vn-th-prom">Prom</th>
+                    </React.Fragment>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {consultando ? (
-                  <tr>
-                    <td colSpan="31" className="text-center text-muted">Consultando...</td>
-                  </tr>
+                  <tr><td colSpan="31" className="text-center text-muted">Consultando...</td></tr>
                 ) : datosTabla.length > 0 ? (
                   datosTabla.map((row, index) => (
                     <tr key={row.alumno_id}>
-                      <td>{index + 1}</td>
-                      <td className="td-alumno">{formatearNombreAlumno(row.alumno_nombres, row.alumno_apellidos)}</td>
+                      <td className="vn-td-num">{index + 1}</td>
+                      <td className="vn-td-alumno">{formatearNombreAlumno(row.alumno_nombres, row.alumno_apellidos)}</td>
                       {renderNotasCeldas(row.notas_t1)}
-                      <td className={`td-prom ${getNotaClass(row.promedioT1)}`}>{formatearNota(row.promedioT1)}</td>
+                      <td className={`vn-td-prom ${getNotaClass(row.promedioT1)}`}>{formatearNota(row.promedioT1)}</td>
                       {renderNotasCeldas(row.notas_t2)}
-                      <td className={`td-prom ${getNotaClass(row.promedioT2)}`}>{formatearNota(row.promedioT2)}</td>
+                      <td className={`vn-td-prom ${getNotaClass(row.promedioT2)}`}>{formatearNota(row.promedioT2)}</td>
                       {renderNotasCeldas(row.notas_t3)}
-                      <td className={`td-prom ${getNotaClass(row.promedioT3)}`}>{formatearNota(row.promedioT3)}</td>
-                      <td className={`td-final ${getNotaClass(row.promedioFinal)}`}>{formatearNota(row.promedioFinal)}</td>
-                      <td
-                        className={row.estado === 'Aprobado' ? 'estado-aprobado' : row.estado === 'Reprobado' ? 'estado-reprobado' : ''}
-                        style={{ textAlign: 'center', fontSize: '10px', fontWeight: '600' }}
-                      >
+                      <td className={`vn-td-prom ${getNotaClass(row.promedioT3)}`}>{formatearNota(row.promedioT3)}</td>
+                      <td className={`vn-td-final ${getNotaClass(row.promedioFinal)}`}>{formatearNota(row.promedioFinal)}</td>
+                      <td className={`vn-td-estado ${row.estado === 'Aprobado' ? 'estado-aprobado' : row.estado === 'Reprobado' ? 'estado-reprobado' : ''}`}>
                         {row.estado === 'Aprobado' ? 'APR' : row.estado === 'Reprobado' ? 'REP' : '-'}
                       </td>
                     </tr>

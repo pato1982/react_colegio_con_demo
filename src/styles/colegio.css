@@ -891,7 +891,7 @@ select.form-control {
 }
 
 .table-scroll {
-    max-height: 400px;
+    max-height: 260px;
     overflow-y: auto;
 }
 
@@ -2037,18 +2037,115 @@ select.form-control {
 }
 
 /* Tabla trimestres docente */
-.docente-tabla-trimestres-container {
+/* ===== Tabla Ver Notas (vn-*) ===== */
+.vn-tabla-container {
     overflow-x: auto;
     overflow-y: auto;
-    max-height: 500px;
+    max-height: 260px;
 }
 
-.docente-tabla-trimestres-container .docente-tabla-trimestres thead {
+.vn-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 10px;
+}
+
+.vn-tabla th,
+.vn-tabla td {
+    border: 1px solid #e2e8f0;
+    padding: 3px 1px;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- Thead --- */
+.vn-tabla thead {
     position: sticky;
     top: 0;
     z-index: 5;
 }
 
+.vn-th-fijo {
+    background: #f1f5f9;
+    font-weight: 600;
+    color: #475569;
+    font-size: 9px;
+}
+
+.vn-th-trim {
+    background: #1e3a5f;
+    color: white;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.vn-th-nota {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #475569;
+    font-size: 8px;
+    padding: 2px 0;
+}
+
+.vn-th-prom {
+    font-weight: 700;
+    background: #eef2ff;
+}
+
+.vn-th-alumno {
+    text-align: left;
+    padding-left: 4px;
+}
+
+.vn-th-final {
+    background: #eef2ff;
+    font-weight: 700;
+}
+
+/* --- Tbody --- */
+.vn-td-num {
+    color: #64748b;
+    font-size: 9px;
+}
+
+.vn-td-alumno {
+    text-align: left;
+    padding-left: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+
+.vn-td-prom {
+    font-weight: 600;
+    border-right: 2px solid #cbd5e1;
+}
+
+.vn-td-final {
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.vn-td-estado {
+    font-size: 8px;
+    font-weight: 600;
+}
+
+.vn-tabla tbody tr:hover {
+    background: #f8fafc;
+}
+
+/* Compatibilidad con clases existentes de notas */
+.vn-tabla .nota-aprobada { color: #16a34a; }
+.vn-tabla .nota-reprobada { color: #dc2626; }
+.vn-tabla .nota-pendiente { color: #d97706; }
+.vn-tabla .estado-aprobado { color: #16a34a; }
+.vn-tabla .estado-reprobado { color: #dc2626; }
+
+/* Legacy: mantener .docente-tabla para otros componentes que la usen */
 .docente-tabla {
     width: 100%;
     border-collapse: collapse;
@@ -2067,34 +2164,6 @@ select.form-control {
     font-weight: 600;
     color: #475569;
     font-size: 10px;
-}
-
-.docente-tabla .th-sub {
-    padding: 3px 2px;
-    font-size: 9px;
-    min-width: 28px;
-}
-
-.docente-tabla .th-prom {
-    min-width: 32px;
-    font-weight: 700;
-}
-
-.docente-tabla .th-trimestre {
-    background: #1e3a5f;
-    color: white;
-    font-size: 10px;
-}
-
-.docente-tabla .th-alumno,
-.docente-tabla .td-alumno {
-    text-align: left;
-    min-width: 130px;
-    max-width: 150px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding-left: 6px;
 }
 
 .docente-tabla .th-fixed {
@@ -3643,7 +3712,7 @@ select.form-control {
 
     /* Tabla de alumnos compacta en movil */
     .table-responsive.table-scroll {
-        max-height: 350px;
+        max-height: 260px;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         border: 1px solid #e2e8f0;
@@ -4286,82 +4355,81 @@ select.form-control {
         height: 220px !important;
     }
 
-    .docente-tabla-trimestres-container {
-        overflow-x: auto;
-        overflow-y: auto;
-        max-height: 400px;
+    /* Tabla Ver Notas - Móvil */
+    .vn-tabla-container {
+        max-height: 260px;
         -webkit-overflow-scrolling: touch;
     }
 
-    .docente-tabla-trimestres {
+    .vn-tabla {
+        table-layout: auto;
         font-size: 8px;
         border-collapse: separate;
         border-spacing: 0;
     }
 
-    .docente-tabla-trimestres th,
-    .docente-tabla-trimestres td {
-        padding: 5px 4px;
+    .vn-tabla th,
+    .vn-tabla td {
+        padding: 4px 2px;
         min-width: 22px;
     }
 
-    /* Columna N - Sticky (solo primera fila del thead y todas las filas del tbody) */
-    .docente-tabla-trimestres thead tr:first-child th:first-child,
-    .docente-tabla-trimestres td:first-child {
+    /* Columna N - Sticky */
+    .vn-tabla .vn-td-num,
+    .vn-tabla thead tr:first-child th:first-child {
         position: sticky;
         left: 0;
         z-index: 2;
-        background: #0d1f33;
         min-width: 25px;
         width: 25px;
     }
 
-    .docente-tabla-trimestres tbody td:first-child {
+    .vn-tabla thead tr:first-child th:first-child {
+        background: #0d1f33;
+        color: white;
+    }
+
+    .vn-tabla .vn-td-num {
         background: #fff;
         border-right: 1px solid #e5e7eb;
     }
 
-    /* Reset para celdas th-sub en segunda fila (N1, N2, etc.) */
-    .docente-tabla-trimestres .th-sub {
-        position: sticky;
-        top: 0;
-        left: auto;
-        z-index: 1;
-    }
-
     /* Columna Alumno - Sticky */
-    .docente-tabla-trimestres .th-alumno,
-    .docente-tabla-trimestres .td-alumno {
+    .vn-tabla .vn-th-alumno,
+    .vn-tabla .vn-td-alumno {
         position: sticky;
         left: 25px;
         z-index: 2;
         min-width: 90px;
         max-width: 90px;
         font-size: 8px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
-    .docente-tabla-trimestres .th-alumno {
+    .vn-tabla .vn-th-alumno {
         background: #0d1f33;
+        color: white;
     }
 
-    .docente-tabla-trimestres .td-alumno {
+    .vn-tabla .vn-td-alumno {
         background: #fff;
         border-right: 2px solid #cbd5e1;
     }
 
-    /* Headers sticky en su fila */
-    .docente-tabla-trimestres thead th {
+    /* Headers sticky */
+    .vn-tabla thead th {
         position: sticky;
         top: 0;
         z-index: 1;
     }
 
-    .docente-tabla-trimestres thead tr:first-child th:first-child,
-    .docente-tabla-trimestres thead .th-alumno {
+    .vn-tabla thead tr:first-child th:first-child,
+    .vn-tabla .vn-th-alumno {
         z-index: 3;
+    }
+
+    .vn-th-nota {
+        left: auto;
+        z-index: 1;
     }
 
 
@@ -4993,7 +5061,7 @@ select.form-control {
     .tabla-notas-curso-container .table-responsive.table-scroll {
         overflow: auto !important;
         -webkit-overflow-scrolling: touch;
-        max-height: 350px;
+        max-height: 260px;
         margin: 0;
         border-radius: 6px;
         display: block;
@@ -5753,7 +5821,7 @@ select.form-control {
 }
 
 .tabla-asistencia-wrapper {
-    max-height: 500px;
+    max-height: 260px;
     overflow: auto;
 }
 
@@ -6298,7 +6366,7 @@ th.dia-feriado .dia-numero {
     }
 
     .tabla-asistencia-wrapper {
-        max-height: 400px;
+        max-height: 260px;
     }
 
     .tabla-asistencia-unica .th-alumno {
@@ -6379,7 +6447,7 @@ th.dia-feriado .dia-numero {
     }
 
     .tabla-asistencia-wrapper {
-        max-height: 350px;
+        max-height: 260px;
     }
 
     /* Alturas unificadas movil */

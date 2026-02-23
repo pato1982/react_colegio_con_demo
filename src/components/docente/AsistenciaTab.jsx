@@ -395,7 +395,7 @@ function AsistenciaTab({ docenteId, establecimientoId, usuarioId }) {
                 <span style={{ fontSize: '14px', color: '#3b82f6', fontWeight: '800' }}>J = Justificado</span>
               </div>
             )}
-            <div className="table-container-scroll" style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
+            <div className="table-container-scroll" style={{ maxHeight: '260px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
               <table className="data-table docente-tabla-asistencia" style={{ width: '100%', marginBottom: 0 }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f8fafc', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                   <tr>
