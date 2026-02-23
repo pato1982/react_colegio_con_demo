@@ -6,7 +6,7 @@ import ComunicadosTab from './ComunicadosTab';
 import ProgresoTab from './ProgresoTab';
 import ChatApoderado from './ChatApoderado';
 import Header from '../Header';
-import config from '../../config/env';
+import { apiFetch } from '../../utils/api';
 import '../../styles/apoderado_menu.css';
 
 // Datos base del apoderado (estructura mínima para la sesión demo)
@@ -94,10 +94,10 @@ function ApoderadoPage({ onCambiarVista, usuario }) {
     try {
       // Priorizar el ID de apoderado vinculado al perfil
       const idParaConsulta = apoderadoActual.apoderado_id || apoderadoActual.id;
-      const url = `${config.apiBaseUrl}/apoderado/mis-pupilos/${idParaConsulta}`;
+      const url = `/apoderado/mis-pupilos/${idParaConsulta}`;
       console.log('Fetching URL:', url);
 
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       const data = await response.json();
 
       console.log('Respuesta API Pupilos:', data);
@@ -117,7 +117,7 @@ function ApoderadoPage({ onCambiarVista, usuario }) {
 
   const cargarPupilosPendientes = async () => {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/apoderado/pupilos-pendientes/${encodeURIComponent(apoderadoActual.rut)}`);
+      const response = await apiFetch(`/apoderado/pupilos-pendientes/${encodeURIComponent(apoderadoActual.rut)}`);
       const data = await response.json();
       if (data.success) {
         setPupilosPendientes(data.data || []);
@@ -130,9 +130,8 @@ function ApoderadoPage({ onCambiarVista, usuario }) {
   const confirmarPupilo = async (preregistroId) => {
     setCargando(true);
     try {
-      const response = await fetch(`${config.apiBaseUrl}/apoderado/confirmar-pupilo`, {
+      const response = await apiFetch(`/apoderado/confirmar-pupilo`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           preregistro_id: preregistroId,
           apoderado_id: apoderadoActual.id
@@ -163,11 +162,8 @@ function ApoderadoPage({ onCambiarVista, usuario }) {
 
     try {
       const apoderadoId = apoderadoActual.apoderado_id || apoderadoActual.id;
-      const response = await fetch(`${config.apiBaseUrl}/apoderado/vincular-manual`, {
+      const response = await apiFetch(`/apoderado/vincular-manual`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           rut_alumno: rutAlumnoAgregar,
           apoderado_id: apoderadoId,

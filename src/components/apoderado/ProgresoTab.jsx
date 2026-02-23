@@ -12,7 +12,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import config from '../../config/env';
+import { apiFetch } from '../../utils/api';
 import { useResponsive } from '../../hooks';
 
 // Registrar componentes necesarios de Chart.js
@@ -106,8 +106,8 @@ function ProgresoTab({ pupilo, notas: notasProp }) {
       setError('');
 
       try {
-        const urlProgreso = `${config.apiBaseUrl}/apoderado/pupilo/${pupilo.id}/progreso`;
-        const resProgreso = await fetch(urlProgreso);
+        const urlProgreso = `/apoderado/pupilo/${pupilo.id}/progreso`;
+        const resProgreso = await apiFetch(urlProgreso);
         const dataProgreso = await resProgreso.json();
 
         if (dataProgreso.success) {
@@ -116,8 +116,8 @@ function ProgresoTab({ pupilo, notas: notasProp }) {
           setError(dataProgreso.error || 'Error al cargar progreso');
         }
 
-        const urlNotas = `${config.apiBaseUrl}/apoderado/pupilo/${pupilo.id}/notas`;
-        const resNotas = await fetch(urlNotas);
+        const urlNotas = `/apoderado/pupilo/${pupilo.id}/notas`;
+        const resNotas = await apiFetch(urlNotas);
         const dataNotas = await resNotas.json();
 
         if (dataNotas.success && Array.isArray(dataNotas.data)) {

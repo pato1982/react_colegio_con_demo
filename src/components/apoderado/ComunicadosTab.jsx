@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useResponsive } from '../../hooks';
-import config from '../../config/env';
+import { apiFetch } from '../../utils/api';
 
 function ComunicadosTab({ pupilo, usuarioId, comunicados: comunicadosProp }) {
   const [comunicados, setComunicados] = useState(comunicadosProp || []);
@@ -44,8 +44,8 @@ function ComunicadosTab({ pupilo, usuarioId, comunicados: comunicadosProp }) {
       setError('');
 
       try {
-        const url = `${config.apiBaseUrl}/apoderado/pupilo/${pupilo.id}/comunicados?usuario_id=${usuarioId || 0}`;
-        const response = await fetch(url);
+        const url = `/apoderado/pupilo/${pupilo.id}/comunicados?usuario_id=${usuarioId || 0}`;
+        const response = await apiFetch(url);
         const data = await response.json();
 
         if (data.success) {
@@ -69,9 +69,8 @@ function ComunicadosTab({ pupilo, usuarioId, comunicados: comunicadosProp }) {
     if (!usuarioId) return;
 
     try {
-      await fetch(`${config.apiBaseUrl}/apoderado/comunicado/${comunicadoId}/marcar-leido`, {
+      await apiFetch(`/apoderado/comunicado/${comunicadoId}/marcar-leido`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usuario_id: usuarioId })
       });
 

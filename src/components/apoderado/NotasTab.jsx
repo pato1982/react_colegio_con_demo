@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import config from '../../config/env';
+import { apiFetch } from '../../utils/api';
 
 function NotasTab({ pupilo, notas: notasProp }) {
   const [notas, setNotas] = useState(notasProp || []);
@@ -31,8 +31,8 @@ function NotasTab({ pupilo, notas: notasProp }) {
       setError('');
 
       try {
-        const url = `${config.apiBaseUrl}/apoderado/pupilo/${pupilo.id}/notas`;
-        const response = await fetch(url);
+        const url = `/apoderado/pupilo/${pupilo.id}/notas`;
+        const response = await apiFetch(url);
         const data = await response.json();
 
         if (data.success) {
