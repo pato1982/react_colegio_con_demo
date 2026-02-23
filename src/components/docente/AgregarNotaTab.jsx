@@ -805,7 +805,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
               </div>
               <div className="card-body">
                 <form onSubmit={handleSubmit}>
-                  {showTabs ? <FormularioMovil /> : <FormularioDesktop />}
+                  {showTabs ? FormularioMovil() : FormularioDesktop()}
 
                   <div style={{ marginBottom: '16px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>

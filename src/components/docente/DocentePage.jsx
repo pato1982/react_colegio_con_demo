@@ -246,6 +246,10 @@ function DocentePage({ onCambiarVista, usuarioDocente }) {
               <button
                 onClick={() => setVistaActual('menu')}
                 style={{
+                  position: 'fixed',
+                  top: '80px',
+                  right: '40px',
+                  zIndex: 1000,
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',

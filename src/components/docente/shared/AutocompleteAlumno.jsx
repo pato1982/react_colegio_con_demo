@@ -34,12 +34,18 @@ function AutocompleteAlumno({
     };
   }, []);
 
+  // Normalizar texto: quitar acentos y pasar a minúsculas
+  const normalizar = (texto) =>
+    texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
   const alumnosFiltrados = useMemo(() => {
     if (alumnoSeleccionado) return alumnos;
-    if (!busqueda) return alumnos;
-    const busquedaLower = busqueda.toLowerCase();
+    // Filtrar solo a partir del 3er carácter
+    if (!busqueda || busqueda.length < 3) return alumnos;
+    const busqNorm = normalizar(busqueda);
     return alumnos.filter(a =>
-      `${a.nombres} ${a.apellidos}`.toLowerCase().includes(busquedaLower)
+      normalizar(`${a.nombres} ${a.apellidos}`).includes(busqNorm) ||
+      normalizar(`${a.apellidos} ${a.nombres}`).includes(busqNorm)
     );
   }, [alumnos, busqueda, alumnoSeleccionado]);
 

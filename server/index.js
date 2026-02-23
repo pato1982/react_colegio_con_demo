@@ -95,7 +95,7 @@ app.get('/api/establecimientos', async (req, res) => {
 // RUTAS DE ALUMNOS
 // ============================================
 
-// GET /api/alumnos - Obtener todos los alumnos con sus cursos (USANDO MATRIC ULAS)
+// GET /api/alumnos - Obtener todos los alumnos con sus cursos
 app.get('/api/alumnos', async (req, res) => {
     const { curso_id } = req.query;
     const anioActual = new Date().getFullYear();
@@ -113,8 +113,8 @@ app.get('/api/alumnos', async (req, res) => {
         c.nombre AS curso_nombre,
         c.id AS curso_id
       FROM tb_alumnos a
-      LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = ?
-      LEFT JOIN tb_cursos c ON m.curso_asignado_id = c.id
+      LEFT JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id AND ae.activo = 1 AND ae.anio_academico = ?
+      LEFT JOIN tb_cursos c ON ae.curso_id = c.id
       WHERE a.activo = 1
     `;
 
@@ -137,7 +137,7 @@ app.get('/api/alumnos', async (req, res) => {
     }
 });
 
-// GET /api/alumnos/por-curso - Obtener alumnos agrupados por curso (USANDO MATRICULAS)
+// GET /api/alumnos/por-curso - Obtener alumnos agrupados por curso
 app.get('/api/alumnos/por-curso', async (req, res) => {
     const anioActual = new Date().getFullYear();
     try {
@@ -153,8 +153,8 @@ app.get('/api/alumnos/por-curso', async (req, res) => {
         c.nombre AS curso_nombre,
         c.id AS curso_id
       FROM tb_alumnos a
-      LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = ?
-      LEFT JOIN tb_cursos c ON m.curso_asignado_id = c.id
+      LEFT JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id AND ae.activo = 1 AND ae.anio_academico = ?
+      LEFT JOIN tb_cursos c ON ae.curso_id = c.id
       WHERE a.activo = 1
       ORDER BY c.nombre, a.apellidos, a.nombres
     `, [anioActual]);
@@ -176,33 +176,30 @@ app.get('/api/alumnos/por-curso', async (req, res) => {
     }
 });
 
-// GET /api/alumnos/:id/detalle - Obtener ficha completa (Alumno + Apoderado + Matricula Actual)
+// GET /api/alumnos/:id/detalle - Obtener ficha completa (Alumno + Apoderado + Curso)
 app.get('/api/alumnos/:id/detalle', async (req, res) => {
     try {
         const { id } = req.params;
         const anioActual = new Date().getFullYear();
-        // 1. Datos Alumno + Matricula Actual + Curso
+        // 1. Datos Alumno + Curso (via alumno_establecimiento)
         const [alumnoRows] = await pool.query(`
             SELECT
                 a.*,
-                m.id as matricula_id,
-                m.anio_academico,
-                m.estado as estado_matricula,
-                m.tipo_matricula,
+                ae.id as matricula_id,
+                ae.anio_academico,
                 c.id as curso_id,
                 c.nombre as curso_nombre
             FROM tb_alumnos a
-            LEFT JOIN tb_matriculas m ON a.id = m.alumno_id AND m.activo = 1 AND m.anio_academico = ?
-            LEFT JOIN tb_cursos c ON m.curso_asignado_id = c.id
+            LEFT JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id AND ae.activo = 1 AND ae.anio_academico = ?
+            LEFT JOIN tb_cursos c ON ae.curso_id = c.id
             WHERE a.id = ?
         `, [anioActual, id]);
 
         if (alumnoRows.length === 0) return res.status(404).json({ success: false, error: 'Alumno no encontrado' });
         const alumno = alumnoRows[0];
 
-        // 2. Datos Apoderado (via tb_apoderado_alumno o via tb_matriculas)
+        // 2. Datos Apoderado (via tb_apoderado_alumno)
         let apoderado = null;
-        // Primero intentar desde tb_apoderado_alumno (relación directa)
         const [apodRows] = await pool.query(`
             SELECT ap.*, aa.parentesco as parentezco
             FROM tb_apoderado_alumno aa
@@ -212,15 +209,6 @@ app.get('/api/alumnos/:id/detalle', async (req, res) => {
         `, [id]);
         if (apodRows.length > 0) {
             apoderado = apodRows[0];
-        } else if (alumno.matricula_id) {
-            // Fallback: desde la matrícula
-            const [apodMatRows] = await pool.query(`
-                SELECT ap.*
-                FROM tb_matriculas m
-                JOIN tb_apoderados ap ON m.apoderado_id = ap.id
-                WHERE m.id = ?
-            `, [alumno.matricula_id]);
-            if (apodMatRows.length > 0) apoderado = apodMatRows[0];
         }
 
         res.json({ success: true, data: { alumno, apoderado } });

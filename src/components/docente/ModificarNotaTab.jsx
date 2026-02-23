@@ -12,10 +12,10 @@ registerLocale('es', es);
 
 // Modal de edicion
 const ModalEditar = ({ nota, editNota, setEditNota, editTrimestre, setEditTrimestre, editFecha, setEditFecha, editComentario, setEditComentario, editPendiente, setEditPendiente, onGuardar, onCerrar, guardando }) => (
-  <div className="modal-overlay" onClick={onCerrar}>
-    <div className="modal" onClick={(e) => e.stopPropagation()}>
+  <div className="modal-overlay" onClick={onCerrar} style={{ zIndex: 1200, alignItems: 'flex-start', paddingTop: '75px' }}>
+    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxHeight: 'calc(100vh - 90px)' }}>
       <div className="modal-header">
-        <h3>Editar Calificacion</h3>
+        <h3 style={{ color: 'white' }}>Editar Calificacion</h3>
         <button className="modal-close" onClick={onCerrar}>&times;</button>
       </div>
       <form onSubmit={onGuardar}>
@@ -84,8 +84,8 @@ const ModalEditar = ({ nota, editNota, setEditNota, editTrimestre, setEditTrimes
 
 // Modal de confirmacion eliminar
 const ModalEliminar = ({ nota, onConfirmar, onCerrar, eliminando }) => (
-  <div className="modal-overlay" onClick={onCerrar}>
-    <div className="modal" onClick={(e) => e.stopPropagation()}>
+  <div className="modal-overlay" onClick={onCerrar} style={{ zIndex: 1200, alignItems: 'flex-start', paddingTop: '75px' }}>
+    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxHeight: 'calc(100vh - 90px)' }}>
       <div className="modal-header" style={{ background: '#fef2f2' }}>
         <h3 style={{ color: '#dc2626' }}>Eliminar Calificacion</h3>
         <button className="modal-close" onClick={onCerrar}>&times;</button>
