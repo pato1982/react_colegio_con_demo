@@ -654,14 +654,14 @@
 .tabla-notas-anual {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
-  min-width: 1200px;
+  font-size: 11px;
+  min-width: 900px;
 }
 
 .tabla-notas-anual th,
 .tabla-notas-anual td {
   border: 1px solid #e2e8f0;
-  padding: 6px 4px;
+  padding: 4px 2px;
   text-align: center;
 }
 
@@ -670,8 +670,10 @@
   color: #fff;
   font-weight: 600;
   text-align: left;
-  padding: 8px 12px;
-  min-width: 120px;
+  padding: 6px 8px;
+  min-width: 100px;
+  max-width: 130px;
+  font-size: 10px;
   position: sticky;
   left: 0;
   z-index: 2;
@@ -681,12 +683,14 @@
   background: #1e3a5f;
   color: #fff;
   font-weight: 600;
-  min-width: 50px;
+  min-width: 36px;
+  font-size: 9px;
 }
 
 .tabla-notas-anual .trimestre-col {
   font-weight: 600;
-  padding: 8px 4px;
+  padding: 5px 2px;
+  font-size: 10px;
 }
 
 .tabla-notas-anual .trimestre-col.trimestre-1 {
@@ -706,8 +710,8 @@
 
 .tabla-notas-anual .nota-col {
   font-weight: 500;
-  font-size: 10px;
-  padding: 4px 2px;
+  font-size: 9px;
+  padding: 3px 1px;
 }
 
 .tabla-notas-anual .nota-col.trimestre-1 {
@@ -738,8 +742,8 @@
 }
 
 .tabla-notas-anual .nota-celda {
-  padding: 3px 2px;
-  min-width: 32px;
+  padding: 2px 1px;
+  min-width: 26px;
 }
 
 .tabla-notas-anual .promedio-celda {

@@ -2039,17 +2039,25 @@ select.form-control {
 /* Tabla trimestres docente */
 .docente-tabla-trimestres-container {
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 500px;
+}
+
+.docente-tabla-trimestres-container .docente-tabla-trimestres thead {
+    position: sticky;
+    top: 0;
+    z-index: 5;
 }
 
 .docente-tabla {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .docente-tabla th,
 .docente-tabla td {
-    padding: 6px 8px;
+    padding: 4px 3px;
     text-align: center;
     border: 1px solid #e2e8f0;
 }
@@ -2058,17 +2066,35 @@ select.form-control {
     background: #f8fafc;
     font-weight: 600;
     color: #475569;
+    font-size: 10px;
+}
+
+.docente-tabla .th-sub {
+    padding: 3px 2px;
+    font-size: 9px;
+    min-width: 28px;
+}
+
+.docente-tabla .th-prom {
+    min-width: 32px;
+    font-weight: 700;
 }
 
 .docente-tabla .th-trimestre {
     background: #1e3a5f;
     color: white;
+    font-size: 10px;
 }
 
 .docente-tabla .th-alumno,
 .docente-tabla .td-alumno {
     text-align: left;
-    min-width: 150px;
+    min-width: 130px;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 6px;
 }
 
 .docente-tabla .th-fixed {
@@ -4262,6 +4288,8 @@ select.form-control {
 
     .docente-tabla-trimestres-container {
         overflow-x: auto;
+        overflow-y: auto;
+        max-height: 400px;
         -webkit-overflow-scrolling: touch;
     }
 
