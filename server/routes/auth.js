@@ -249,8 +249,8 @@ router.post('/login', async (req, res) => {
 
         // Registrar sesión en la base de datos
         await pool.query(`
-            INSERT INTO tb_sesiones (usuario_id, establecimiento_id, tipo_usuario, token_sesion, ip_address, user_agent, fecha_expiracion)
-            VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))
+            INSERT INTO tb_sesiones (usuario_id, establecimiento_id, tipo_usuario, token_sesion, ip_address, user_agent, activa)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
         `, [usuario.id, datosAdicionales.establecimiento_id || null, tipoDb, token, req.ip, req.headers['user-agent']]);
 
         // Respuesta exitosa
@@ -333,7 +333,7 @@ router.get('/me', async (req, res) => {
 
         // Verificar que la sesión esté activa en la base de datos
         const [sesiones] = await pool.query(
-            'SELECT * FROM tb_sesiones WHERE token_sesion = ? AND activa = 1 AND fecha_expiracion > NOW()',
+            'SELECT * FROM tb_sesiones WHERE token_sesion = ? AND activa = 1',
             [token]
         );
 

@@ -1,13 +1,14 @@
 // Configuración de conexión a MySQL
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 // Pool de conexiones (más eficiente que conexiones individuales)
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT || 3306,
-    user: process.env.DB_USER || 'portal_user',
-    password: process.env.DB_PASSWORD || 'Portal@DB2024',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '9Il2cmw4PgSQ10V',
     database: process.env.DB_NAME || 'portal_estudiantil',
     waitForConnections: true,
     connectionLimit: 10,
