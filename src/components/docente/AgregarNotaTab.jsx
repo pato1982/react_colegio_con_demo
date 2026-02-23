@@ -259,11 +259,14 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
   }, [cursoSeleccionado]);
 
   const cargarNotasRecientes = async (cursoId = null, alumnoId = null) => {
+    if (!cursoId) {
+      setNotasRecientes([]);
+      return;
+    }
     setCargandoNotas(true);
     try {
-      let url = `/docente/${docenteId}/notas/buscar?establecimiento_id=${establecimientoId}&`;
-      if (cursoId) url += `curso_id=${cursoId}&`;
-      if (alumnoId) url += `alumno_id=${alumnoId}&`;
+      let url = `/docente/${docenteId}/notas/buscar?establecimiento_id=${establecimientoId}&curso_id=${cursoId}`;
+      if (alumnoId) url += `&alumno_id=${alumnoId}`;
       const response = await apiFetch(url);
       const data = await response.json();
       if (data.success) {
@@ -275,11 +278,6 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
       setCargandoNotas(false);
     }
   };
-
-  // Cargar notas recientes al inicio
-  useEffect(() => {
-    cargarNotasRecientes();
-  }, [docenteId, establecimientoId]);
 
   // Cargar alumnos para filtro cuando se selecciona curso en filtros
   useEffect(() => {
@@ -619,11 +617,11 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
 
   // Componente de Ultimas Notas
   const TablaUltimasNotas = () => (
-    <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
+    <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div className="card-header">
         <h3>Ultimas Notas</h3>
       </div>
-      <div className="card-body" style={{ flex: 1, overflow: 'visible', display: 'flex', flexDirection: 'column' }}>
+      <div className="card-body" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* Filtros */}
         <div className="filtros-notas-recientes" style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           {/* ... filtros (mismo código) ... */}
@@ -703,7 +701,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
             Sin notas recientes
           </div>
         ) : (
-          <div className="table-responsive" style={{ overflowY: 'auto', overflowX: showTabs ? 'hidden' : 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+          <div className="table-responsive" style={{ flex: 1, overflowY: 'auto', overflowX: showTabs ? 'hidden' : 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
             <table className="data-table" style={showTabs ? { tableLayout: 'fixed', width: '100%' } : {}}>
               <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
                 <tr>

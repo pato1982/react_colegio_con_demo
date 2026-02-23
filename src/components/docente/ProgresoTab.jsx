@@ -32,6 +32,8 @@ function ProgresoTab({ docenteId, establecimientoId }) {
 
   // Estado para el popup de alumnos con bajo rendimiento
   const [popupBajoRendimiento, setPopupBajoRendimiento] = useState(false);
+  // Filtro trimestre del gráfico evolución (independiente del filtro principal)
+  const [filtroTrimestreGrafico, setFiltroTrimestreGrafico] = useState('');
 
   const { isMobile } = useResponsive();
 
@@ -103,6 +105,7 @@ function ProgresoTab({ docenteId, establecimientoId }) {
     setAsignaturaNombre('');
     setEstadisticas(null);
     setNotasDetalladas([]);
+    setFiltroTrimestreGrafico('');
   };
 
   const handleAsignaturaChange = (e) => {
@@ -188,7 +191,7 @@ function ProgresoTab({ docenteId, establecimientoId }) {
     };
 
     [1, 2, 3].forEach(t => {
-      if (trimestreSeleccionado && trimestreSeleccionado !== t.toString()) return;
+      if (filtroTrimestreGrafico && filtroTrimestreGrafico !== t.toString()) return;
 
       for (let i = 0; i < 8; i++) {
         const prom = calcPromedioColumna(`notas_t${t}`, i);
@@ -225,7 +228,7 @@ function ProgresoTab({ docenteId, establecimientoId }) {
       }]
     };
 
-  }, [notasDetalladas, trimestreSeleccionado]);
+  }, [notasDetalladas, filtroTrimestreGrafico]);
 
   // Opciones grafico evolucion
   const evolucionChartOptions = useMemo(() => ({
@@ -460,7 +463,30 @@ function ProgresoTab({ docenteId, establecimientoId }) {
               <div className="card-body docente-chart-container"><Bar data={chartDistribucion} options={distributionOptions} /></div>
             </div>
             <div className="card docente-chart-card">
-              <div className="card-header"><h3>Evolucion de Notas (Nota a Nota)</h3></div>
+              <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'nowrap', gap: '8px' }}>
+                <h3 style={{ margin: 0, whiteSpace: 'nowrap' }}>Evolucion de Notas</h3>
+                <select
+                  value={filtroTrimestreGrafico}
+                  onChange={(e) => setFiltroTrimestreGrafico(e.target.value)}
+                  style={{
+                    height: '26px',
+                    fontSize: '11px',
+                    padding: '0 6px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    background: '#f8fafc',
+                    color: '#334155',
+                    cursor: 'pointer',
+                    minWidth: '90px',
+                    flexShrink: 0
+                  }}
+                >
+                  <option value="">Todos</option>
+                  <option value="1">Trimestre 1</option>
+                  <option value="2">Trimestre 2</option>
+                  <option value="3">Trimestre 3</option>
+                </select>
+              </div>
               <div className="card-body docente-chart-container">
                 {chartEvolucionData ?
                   <Line data={chartEvolucionData} options={evolucionChartOptions} /> :

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useResponsive } from '../../hooks';
 import AsistenciaTab from './AsistenciaTab';
 import AgregarNotaTab from './AgregarNotaTab';
 import ModificarNotaTab from './ModificarNotaTab';
@@ -9,6 +10,7 @@ import { apiFetch } from '../../utils/api';
 import '../../styles/apoderado_menu.css';
 
 function DocentePage({ onCambiarVista, usuarioDocente }) {
+  const { isMobile } = useResponsive();
   const [tabActual, setTabActual] = useState(() => localStorage.getItem('docenteActiveTab') || 'asistencia');
 
   const [vistaActual, setVistaActual] = useState('menu');
@@ -171,8 +173,8 @@ function DocentePage({ onCambiarVista, usuarioDocente }) {
               <span className="logo-icon">E</span>
             </div>
             <div className="brand-text" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span style={{ fontSize: '11px', textTransform: 'uppercase', opacity: 0.8, letterSpacing: '0.5px', color: '#cbd5e1' }}>Portal Docente</span>
-              <h1 style={{ margin: 0, fontSize: '16px', lineHeight: '1.2' }}>{docenteActual.nombres} {docenteActual.apellidos}</h1>
+              <span style={{ fontSize: isMobile ? '8px' : '11px', textTransform: 'uppercase', opacity: 0.8, letterSpacing: '0.5px', color: '#cbd5e1' }}>Portal Docente</span>
+              <h1 style={{ margin: 0, fontSize: isMobile ? '10px' : '16px', lineHeight: '1.2' }}>{docenteActual.nombres} {docenteActual.apellidos}</h1>
             </div>
           </div>
           <div className="header-info">
