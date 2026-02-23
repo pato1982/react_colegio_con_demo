@@ -6,7 +6,7 @@ const registroRoutes = require('./routes/registro');
 const chatRoutes = require('./routes/chat');
 const contactoRoutes = require('./routes/contacto');
 const matriculasRoutes = require('./routes/matriculas');
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const app = express();
 const http = require('http');
@@ -1776,7 +1776,7 @@ app.post('/api/notas/registrar', async (req, res) => {
         // Obtener nombres para el log
         const [alumnoRow] = await connection.query('SELECT nombres, apellidos FROM tb_alumnos WHERE id = ?', [alumno_id]);
         const [asignaturaRow] = await connection.query('SELECT nombre FROM tb_asignaturas WHERE id = ?', [asignatura_id]);
-        const [userRow] = await connection.query('SELECT nombres, apellidos, tipo_usuario FROM tb_usuarios u LEFT JOIN tb_docentes d ON u.id = d.usuario_id WHERE u.id = ?', [registrado_por]);
+        const [userRow] = await connection.query(`SELECT u.tipo_usuario, COALESCE(d.nombres, a.nombres) as nombres, COALESCE(d.apellidos, a.apellidos) as apellidos FROM tb_usuarios u LEFT JOIN tb_docentes d ON u.id = d.usuario_id LEFT JOIN tb_administradores a ON u.id = a.usuario_id WHERE u.id = ?`, [registrado_por]);
 
         const nombreAlumno = alumnoRow.length > 0 ? `${alumnoRow[0].nombres} ${alumnoRow[0].apellidos}` : `ID ${alumno_id}`;
         const nombreAsignatura = asignaturaRow.length > 0 ? asignaturaRow[0].nombre : `ID ${asignatura_id}`;
@@ -2322,7 +2322,7 @@ app.post('/api/asistencia/registrar', async (req, res) => {
         const trimestre = mes <= 5 ? 1 : mes <= 8 ? 2 : 3;
 
         // Obtener nombres para el log
-        const [userRow] = await connection.query('SELECT nombres, apellidos, tipo_usuario FROM tb_usuarios u LEFT JOIN tb_docentes d ON u.id = d.usuario_id WHERE u.id = ?', [registrado_por]);
+        const [userRow] = await connection.query(`SELECT u.tipo_usuario, COALESCE(d.nombres, a.nombres) as nombres, COALESCE(d.apellidos, a.apellidos) as apellidos FROM tb_usuarios u LEFT JOIN tb_docentes d ON u.id = d.usuario_id LEFT JOIN tb_administradores a ON u.id = a.usuario_id WHERE u.id = ?`, [registrado_por]);
         const [cursoRow] = await connection.query('SELECT nombre FROM tb_cursos WHERE id = ?', [curso_id]);
 
         const nombreUsuario = userRow.length > 0 ? `${userRow[0].nombres} ${userRow[0].apellidos}` : 'Usuario';
@@ -3364,7 +3364,11 @@ app.get('/api/comunicados', async (req, res) => {
                 c.para_todos_cursos,
                 c.fecha_envio,
                 c.activo,
-                CONCAT(u.nombres, ' ', u.apellidos) as remitente_nombre
+                CASE
+                    WHEN u.tipo_usuario = 'administrador' THEN (SELECT CONCAT(a.nombres, ' ', a.apellidos) FROM tb_administradores a WHERE a.usuario_id = u.id)
+                    WHEN u.tipo_usuario = 'docente' THEN (SELECT CONCAT(d.nombres, ' ', d.apellidos) FROM tb_docentes d WHERE d.usuario_id = u.id)
+                    WHEN u.tipo_usuario = 'apoderado' THEN (SELECT CONCAT(ap.nombres, ' ', ap.apellidos) FROM tb_apoderados ap WHERE ap.usuario_id = u.id)
+                END as remitente_nombre
             FROM tb_comunicados c
             LEFT JOIN tb_usuarios u ON c.remitente_id = u.id
             WHERE c.establecimiento_id = ?
@@ -3430,7 +3434,11 @@ app.get('/api/comunicados/apoderado/:apoderadoId', async (req, res) => {
                 c.hora_evento,
                 c.lugar_evento,
                 c.fecha_envio,
-                CONCAT(u.nombres, ' ', u.apellidos) as remitente_nombre,
+                CASE
+                    WHEN u.tipo_usuario = 'administrador' THEN (SELECT CONCAT(a.nombres, ' ', a.apellidos) FROM tb_administradores a WHERE a.usuario_id = u.id)
+                    WHEN u.tipo_usuario = 'docente' THEN (SELECT CONCAT(d.nombres, ' ', d.apellidos) FROM tb_docentes d WHERE d.usuario_id = u.id)
+                    WHEN u.tipo_usuario = 'apoderado' THEN (SELECT CONCAT(ap.nombres, ' ', ap.apellidos) FROM tb_apoderados ap WHERE ap.usuario_id = u.id)
+                END as remitente_nombre,
                 cl.id as lectura_id,
                 cl.fecha_lectura,
                 cl.confirmado,

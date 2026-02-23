@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/database');
+const { pool } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
 // GET /api/matriculas
@@ -108,7 +108,7 @@ router.post('/', async (req, res) => {
 
         // ─── 2. PERIODO MATRÍCULA ───
         const [periodos] = await connection.query(
-            'SELECT id FROM tb_periodos_matricula WHERE establecimiento_id = ? AND anio = ? AND activo = 1 LIMIT 1',
+            'SELECT id FROM tb_periodos_matricula WHERE establecimiento_id = ? AND anio_academico = ? AND activo = 1 LIMIT 1',
             [estId, anio]
         );
         let periodoId;
@@ -116,8 +116,8 @@ router.post('/', async (req, res) => {
             periodoId = periodos[0].id;
         } else {
             const [nuevo] = await connection.query(
-                `INSERT INTO tb_periodos_matricula (establecimiento_id, nombre, anio, fecha_inicio, fecha_fin, estado, activo)
-                 VALUES (?, ?, ?, CONCAT(?, '-03-01'), CONCAT(?, '-12-31'), 'abierto', 1)`,
+                `INSERT INTO tb_periodos_matricula (establecimiento_id, nombre, anio_academico, fecha_inicio, fecha_fin, activo)
+                 VALUES (?, ?, ?, CONCAT(?, '-03-01'), CONCAT(?, '-12-31'), 1)`,
                 [estId, `Admisión ${anio}`, anio, anio, anio]
             );
             periodoId = nuevo.insertId;
