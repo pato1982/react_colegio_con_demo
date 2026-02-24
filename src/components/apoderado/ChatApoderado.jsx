@@ -152,12 +152,12 @@ function ChatApoderado({ usuario, pupiloSeleccionado }) {
 
   // ==================== SOCKET.IO ====================
   useEffect(() => {
-    if (usuario?.id) {
+    if (chatAbierto && usuario?.id) {
       const socket = socketService.connect(usuario.id);
 
       const handleNuevoMensaje = (msg) => {
         // 1. Si el mensaje es para la conversación actual abierta
-        if (chatAbierto && conversacionActiva && String(msg.conversacion_id) === String(conversacionActiva)) {
+        if (conversacionActiva && String(msg.conversacion_id) === String(conversacionActiva)) {
           setMensajes(prev => {
             if (prev.some(m => String(m.id) === String(msg.id))) return prev;
             return [...prev, msg];
@@ -168,14 +168,10 @@ function ChatApoderado({ usuario, pupiloSeleccionado }) {
             chatService.marcarConversacionLeida(conversacionActiva, usuario.id);
           }
         } else {
-          // 2. Es de otra conversación o el chat está cerrado
+          // 2. Es de otra conversación
           if (msg.direccion === 'recibido') {
             setTotalNoLeidos(prev => prev + 1);
-
-            // Recargar la lista de contactos para asegurar que aparezcan badges y el contacto sea visible
             cargarContactos();
-
-            // Si el chat está abierto, notificamos visualmente (opcional, ya se hace al recargar la lista)
           }
         }
       };
@@ -192,6 +188,7 @@ function ChatApoderado({ usuario, pupiloSeleccionado }) {
       return () => {
         socket.off('nuevo_mensaje', handleNuevoMensaje);
         socket.off('chat_estado_actualizado', handleEstadoActualizado);
+        socketService.disconnect();
       };
     }
   }, [usuario?.id, conversacionActiva, chatAbierto, contactoActual]);
@@ -413,7 +410,7 @@ function ChatApoderado({ usuario, pupiloSeleccionado }) {
         <div className="chatv2-content">
 
           {/* Columna 1: Navegación */}
-          <div className={`chatv2-nav ${!mostrarListaMobile ? 'hidden-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className={`chatv2-nav ${!mostrarListaMobile ? 'hidden-mobile' : ''}`}>
             <button
               className={`chatv2-nav-item ${vistaActiva === 'docentes' ? 'active' : ''}`}
               onClick={() => setVistaActiva('docentes')}

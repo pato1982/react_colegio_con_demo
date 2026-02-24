@@ -1,21 +1,23 @@
 // Caché en memoria para endpoints de estadísticas y progreso
-// TTL: 30 minutos. Warmup automático al iniciar + setInterval cada 30 min.
+// TTL por defecto: 30 minutos. Warmup automático al iniciar + setInterval cada 30 min.
 
 const cache = new Map();
 const TTL = 30 * 60 * 1000; // 30 minutos
+const TTL_NOTAS = 15 * 60 * 1000; // 15 minutos para notas recientes
 
 function get(key) {
   const entry = cache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.timestamp > TTL) {
+  const ttl = entry.ttl || TTL;
+  if (Date.now() - entry.timestamp > ttl) {
     cache.delete(key);
     return null;
   }
   return entry;
 }
 
-function set(key, data) {
-  cache.set(key, { data, timestamp: Date.now() });
+function set(key, data, customTtl) {
+  cache.set(key, { data, timestamp: Date.now(), ttl: customTtl || TTL });
 }
 
 function clear(pattern) {
@@ -75,10 +77,20 @@ async function warmup(port) {
       ));
     }
 
-    // 4. Estadísticas por docente
+    // 4. Estadísticas por docente + notas recientes por curso
     const docentes = docentesData?.data || [];
     if (docentes.length > 0) {
-      await Promise.all(docentes.map(d => fetchLocal(`/estadisticas/docente/${d.id}`)));
+      for (const d of docentes) {
+        await fetchLocal(`/estadisticas/docente/${d.id}`);
+        // Pre-calentar notas/buscar para cada curso del docente
+        const cursosDoc = await fetchLocal(`/docente/${d.id}/cursos?establecimiento_id=1`);
+        const cursosDelDocente = cursosDoc?.data || [];
+        if (cursosDelDocente.length > 0) {
+          await Promise.all(cursosDelDocente.map(c =>
+            fetchLocal(`/docente/${d.id}/notas/buscar?establecimiento_id=1&curso_id=${c.id}`)
+          ));
+        }
+      }
     }
 
     // 5. Estadísticas por asignatura
@@ -103,9 +115,9 @@ function startWarmupSchedule(port) {
   // Primer warmup 3 segundos después de iniciar (dar tiempo a que el server escuche)
   setTimeout(() => {
     warmup(port);
-    // Repetir cada 30 minutos
-    warmupTimer = setInterval(() => warmup(port), TTL);
+    // Repetir cada 15 minutos (cubre TTL de notas=15min y estadísticas=30min)
+    warmupTimer = setInterval(() => warmup(port), TTL_NOTAS);
   }, 3000);
 }
 
-module.exports = { get, set, clear, startWarmupSchedule };
+module.exports = { get, set, clear, startWarmupSchedule, TTL_NOTAS };

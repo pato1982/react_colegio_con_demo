@@ -1984,6 +1984,10 @@ app.post('/api/notas/registrar', async (req, res) => {
 
         await connection.commit();
 
+        // Invalidar caché de notas del docente
+        cache.clear(`notas_buscar_${docente_id || ''}`);
+        cache.clear(`notas_recientes_${docente_id || ''}`);
+
         res.json({
             success: true,
             message: 'Nota registrada correctamente',
@@ -2002,6 +2006,10 @@ app.post('/api/notas/registrar', async (req, res) => {
 app.get('/api/docente/:docenteId/notas-recientes', async (req, res) => {
     const { docenteId } = req.params;
     const { establecimiento_id, curso_id, alumno_id, limit = 30 } = req.query;
+
+    const cacheKey = `notas_recientes_${docenteId}_${establecimiento_id}_${curso_id || 'all'}_${alumno_id || 'all'}_${limit}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         let query = `
@@ -2049,7 +2057,9 @@ app.get('/api/docente/:docenteId/notas-recientes', async (req, res) => {
 
         const [notas] = await pool.query(query, params);
 
-        res.json({ success: true, data: notas });
+        const resultado = { success: true, data: notas };
+        cache.set(cacheKey, resultado, cache.TTL_NOTAS);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener notas recientes:', error);
         res.status(500).json({ success: false, error: 'Error al obtener notas recientes' });
@@ -2114,6 +2124,10 @@ app.get('/api/docente/:docenteId/notas/buscar', async (req, res) => {
         });
     }
 
+    const cacheKey = `notas_buscar_${docenteId}_${establecimiento_id}_${curso_id}_${asignatura_id || 'all'}_${alumno_id || 'all'}_${fecha || 'all'}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
+
     try {
         let query = `
             SELECT
@@ -2165,7 +2179,9 @@ app.get('/api/docente/:docenteId/notas/buscar', async (req, res) => {
 
         const [notas] = await pool.query(query, params);
 
-        res.json({ success: true, data: notas });
+        const resultado = { success: true, data: notas };
+        cache.set(cacheKey, resultado, cache.TTL_NOTAS);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al buscar notas:', error);
         res.status(500).json({ success: false, error: 'Error al buscar notas' });
@@ -2237,6 +2253,10 @@ app.put('/api/notas/:notaId', async (req, res) => {
             notaAnterior.establecimiento_id || 1
         ]);
 
+        // Invalidar caché de notas
+        cache.clear('notas_buscar_');
+        cache.clear('notas_recientes_');
+
         res.json({
             success: true,
             message: 'Nota actualizada correctamente'
@@ -2287,6 +2307,10 @@ app.delete('/api/notas/:notaId', async (req, res) => {
             JSON.stringify({ nota: notaAnterior.nota, trimestre: notaAnterior.trimestre, alumno_id: notaAnterior.alumno_id, asignatura_id: notaAnterior.asignatura_id }),
             notaAnterior.establecimiento_id || 1
         ]);
+
+        // Invalidar caché de notas
+        cache.clear('notas_buscar_');
+        cache.clear('notas_recientes_');
 
         res.json({
             success: true,

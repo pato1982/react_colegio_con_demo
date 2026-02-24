@@ -644,7 +644,7 @@ function AlumnosTab() {
                   onFocus={() => filtros.cursoId && setDropdownAlumnoAbierto(true)}
                 />
                 {dropdownAlumnoAbierto && filtros.cursoId && (
-                  <div style={{
+                  <div className="dropdown-alumnos" style={{
                     position: 'absolute',
                     top: '100%',
                     left: 0,
@@ -653,7 +653,6 @@ function AlumnosTab() {
                     border: '1px solid #e2e8f0',
                     borderRadius: '0 0 8px 8px',
                     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                    maxHeight: '150px',
                     overflowY: 'auto',
                     zIndex: 1000
                   }}>

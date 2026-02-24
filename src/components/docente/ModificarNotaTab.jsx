@@ -758,7 +758,7 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
           <h3>Resultados {buscado && `(${resultados.length})`}</h3>
         </div>
         <div className="card-body">
-          <div className="table-responsive table-scroll">
+          <div className="table-responsive table-scroll" style={isTablet ? { maxHeight: '40vh' } : {}}>
             <table className={`data-table ${showMobile ? 'tabla-compacta-movil' : ''}`}>
               <thead>
                 <tr>

@@ -1,5 +1,6 @@
 const express = require('express');
 const { pool } = require('../config/database');
+const { enviarEmailConsulta } = require('../services/emailService');
 
 const router = express.Router();
 
@@ -41,6 +42,10 @@ router.post('/', async (req, res) => {
             req.ip,
             req.headers['user-agent']
         ]);
+
+        // Enviar email de notificación (no bloquea la respuesta)
+        enviarEmailConsulta({ nombre, establecimiento, telefono, correo, consulta })
+            .catch(err => console.error('Error al enviar email de consulta:', err));
 
         res.json({
             success: true,

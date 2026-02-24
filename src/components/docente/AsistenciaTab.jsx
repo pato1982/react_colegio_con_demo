@@ -115,7 +115,7 @@ function AsistenciaTab({ docenteId, establecimientoId, usuarioId }) {
     alumnoNombre: ''
   });
 
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
   const { dropdownAbierto, setDropdownAbierto } = useDropdown();
 
   // Fecha de hoy (formato local YYYY-MM-DD para evitar desfase UTC)
@@ -274,13 +274,26 @@ function AsistenciaTab({ docenteId, establecimientoId, usuarioId }) {
     setAsistenciaExistente(false);
   };
 
-  const formatearNombreAlumno = (alumno) => {
-    const primerNombre = alumno.nombres.split(' ')[0];
-    const nombre = `${alumno.apellidos} ${primerNombre}`;
-    if (isMobile) {
-      return nombre.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  const capitalizar = (str) => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+
+  const formatearNombreAlumno = (alumno, jsx = false) => {
+    const apellidos = alumno.apellidos.split(' ').filter(a => a);
+    const nombres = alumno.nombres.split(' ').filter(n => n);
+    const ap1 = capitalizar(apellidos[0] || '');
+    const ap2 = apellidos[1] ? ` ${capitalizar(apellidos[1])}` : '';
+    const n1 = capitalizar(nombres[0]);
+    const n2 = nombres[1] ? ` ${nombres[1][0].toUpperCase()}.` : '';
+
+    if (isMobile && jsx) {
+      return (
+        <span>
+          <span style={{ fontWeight: 600 }}>{ap1}{ap2}</span>
+          <br />
+          <span style={{ color: '#64748b' }}>{n1}{n2}</span>
+        </span>
+      );
     }
-    return nombre.toUpperCase();
+    return `${ap1}${ap2} ${n1}${n2}`;
   };
 
   const formatearFechaLarga = (fecha) => {
@@ -395,7 +408,7 @@ function AsistenciaTab({ docenteId, establecimientoId, usuarioId }) {
                 <span style={{ fontSize: '14px', color: '#3b82f6', fontWeight: '800' }}>J = Justificado</span>
               </div>
             )}
-            <div className="table-container-scroll" style={{ maxHeight: '260px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
+            <div className="table-container-scroll" style={{ maxHeight: isTablet ? '55vh' : '260px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
               <table className="data-table docente-tabla-asistencia" style={{ width: '100%', marginBottom: 0 }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f8fafc', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                   <tr>
@@ -411,8 +424,8 @@ function AsistenciaTab({ docenteId, establecimientoId, usuarioId }) {
                   {alumnos.map((alumno, index) => (
                     <tr key={alumno.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                       <td style={{ textAlign: 'center', padding: '4px 8px', fontSize: '13px' }}>{index + 1}</td>
-                      <td style={{ padding: '4px 8px', fontSize: isMobile ? '11px' : '13px' }}>
-                        {formatearNombreAlumno(alumno)}
+                      <td style={{ padding: '4px 8px', fontSize: isMobile ? '11px' : '13px', lineHeight: isMobile ? '1.3' : 'inherit' }}>
+                        {formatearNombreAlumno(alumno, isMobile)}
                         {asistencia[alumno.id]?.estado === 'justificado' && asistencia[alumno.id]?.observacion && (
                           <span title={asistencia[alumno.id].observacion} style={{ marginLeft: '6px', color: '#3b82f6', cursor: 'help' }}>(i)</span>
                         )}

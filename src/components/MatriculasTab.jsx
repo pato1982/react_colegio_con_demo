@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
+import { useResponsive } from '../hooks';
 
 const MatriculasTab = ({ mostrarMensaje }) => {
     // ESTADOS
@@ -19,6 +20,10 @@ const MatriculasTab = ({ mostrarMensaje }) => {
     // Dropdown Curso custom
     const [dropdownCursoAbierto, setDropdownCursoAbierto] = useState(false);
     const dropdownRef = useRef(null);
+
+    // Tablet: 2 pasos en vez de 5
+    const { isTablet } = useResponsive();
+    const totalPasos = isTablet ? 2 : 5;
 
     // Cerrar dropdown al hacer clic fuera
     useEffect(() => {
@@ -78,7 +83,7 @@ const MatriculasTab = ({ mostrarMensaje }) => {
             comuna_alumno: alumno.comuna || '', ciudad_alumno: alumno.ciudad || '',
             email_alumno: alumno.email || '', telefono_alumno: alumno.telefono || '',
         }));
-        setBusqueda(''); setSugerencias([]); setSeccionActual(2);
+        setBusqueda(''); setSugerencias([]); if (!isTablet) setSeccionActual(2);
     };
 
     // --- NUEVO: AUTOLLENADO APODERADO ---
@@ -112,22 +117,39 @@ const MatriculasTab = ({ mostrarMensaje }) => {
     };
 
     const siguientePaso = () => {
-        // PASO 1
+        if (isTablet) {
+            // Tablet paso 1: validar alumno completo (pasos originales 1+2+4)
+            if (seccionActual === 1) {
+                if (!form.curso_asignado_id || !form.anio_academico) {
+                    alert('Debe seleccionar el Curso de Destino y Año Académico.'); return;
+                }
+                if (!form.rut_alumno || !form.nombres_alumno || !form.apellidos_alumno ||
+                    !form.fecha_nacimiento_alumno || !form.sexo_alumno || !form.direccion_alumno) {
+                    alert('Complete todos los datos del Alumno (RUT, Nombres, Apellidos, Fecha, Sexo, Dirección).'); return;
+                }
+                if (!form.contacto_emergencia_nombre || !form.contacto_emergencia_telefono) {
+                    alert('Debe ingresar un Contacto de Emergencia (Nombre y Teléfono).'); return;
+                }
+                if (!form.alergias) {
+                    alert('El campo Alergias es obligatorio (puede ser "Ninguna").'); return;
+                }
+            }
+            setSeccionActual(prev => prev + 1);
+            return;
+        }
+
+        // Desktop/móvil: comportamiento original
         if (seccionActual === 1) {
             if (!form.curso_asignado_id || !form.anio_academico) {
                 alert('Debe seleccionar el Curso de Destino y Año Académico.'); return;
             }
         }
-
-        // PASO 2: Datos Alumno
         if (seccionActual === 2) {
             if (!form.rut_alumno || !form.nombres_alumno || !form.apellidos_alumno ||
                 !form.fecha_nacimiento_alumno || !form.sexo_alumno || !form.direccion_alumno) {
                 alert('Complete todos los datos del Alumno (RUT, Nombres, Apellidos, Fecha, Sexo, Dirección).'); return;
             }
         }
-
-        // PASO 3: Datos Apoderado
         if (seccionActual === 3) {
             if (!form.rut_apoderado || !form.nombres_apoderado || !form.apellidos_apoderado ||
                 !form.parentezco || !form.email_apoderado || !form.telefono_apoderado) {
@@ -137,8 +159,6 @@ const MatriculasTab = ({ mostrarMensaje }) => {
                 alert('Ingrese la dirección del apoderado.'); return;
             }
         }
-
-        // PASO 4: Salud y Emergencia
         if (seccionActual === 4) {
             if (!form.contacto_emergencia_nombre || !form.contacto_emergencia_telefono) {
                 alert('Debe ingresar un Contacto de Emergencia (Nombre y Teléfono).'); return;
@@ -147,7 +167,6 @@ const MatriculasTab = ({ mostrarMensaje }) => {
                 alert('El campo Alergias es obligatorio (puede ser "Ninguna").'); return;
             }
         }
-
         setSeccionActual(prev => prev + 1);
     };
     const anteriorPaso = () => setSeccionActual(prev => prev - 1);
@@ -169,6 +188,17 @@ const MatriculasTab = ({ mostrarMensaje }) => {
         // Validar último paso
         if (!form.colegio_procedencia) {
             alert('Debe ingresar el Colegio de Procedencia.'); return;
+        }
+
+        // En tablet, validar apoderado aquí (en desktop se valida en siguientePaso)
+        if (isTablet) {
+            if (!form.rut_apoderado || !form.nombres_apoderado || !form.apellidos_apoderado ||
+                !form.parentezco || !form.email_apoderado || !form.telefono_apoderado) {
+                alert('Complete todos los datos del Apoderado.'); return;
+            }
+            if (!mismaDireccion && !form.direccion_apoderado) {
+                alert('Ingrese la dirección del apoderado.'); return;
+            }
         }
 
         // VALIDACIÓN PREVIA EN BACKEND
@@ -231,13 +261,13 @@ const MatriculasTab = ({ mostrarMensaje }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <h3>Ficha de Matrícula {form.anio_academico}</h3>
                     </div>
-                    <div style={{ fontSize: '14px', color: '#666' }}>Paso {seccionActual} de 5</div>
+                    <div style={{ fontSize: '14px', color: '#666' }}>Paso {seccionActual} de {totalPasos}</div>
                 </div>
 
                 <div className="card-body">
                     {/* Barra Progreso */}
                     <div style={{ display: 'flex', marginBottom: '20px', background: '#eee', height: '4px', borderRadius: '2px' }}>
-                        <div style={{ width: `${(seccionActual / 5) * 100}%`, background: '#3182ce', transition: 'width 0.3s' }}></div>
+                        <div style={{ width: `${(seccionActual / totalPasos) * 100}%`, background: '#3182ce', transition: 'width 0.3s' }}></div>
                     </div>
 
                     {seccionActual === 1 && (
@@ -283,9 +313,9 @@ const MatriculasTab = ({ mostrarMensaje }) => {
                         </div>
                     )}
 
-                    {seccionActual === 2 && (
-                        <div>
-                            <h4 style={{ color: '#2b6cb0' }}>2. Datos del Alumno</h4>
+                    {(isTablet ? seccionActual === 1 : seccionActual === 2) && (
+                        <div style={isTablet ? { marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' } : undefined}>
+                            <h4 style={{ color: '#2b6cb0' }}>{isTablet ? 'Datos del Alumno' : '2. Datos del Alumno'}</h4>
                             <div className="matricula-paso2-grid">
                                 <div className="form-group campo-rut"><label>RUT</label><input type="text" name="rut_alumno" className="form-control" value={form.rut_alumno} onChange={handleChange} /></div>
                                 <div className="form-group campo-nombres"><label>Nombres</label><input type="text" name="nombres_alumno" className="form-control" value={form.nombres_alumno} onChange={handleChange} /></div>
@@ -297,9 +327,9 @@ const MatriculasTab = ({ mostrarMensaje }) => {
                         </div>
                     )}
 
-                    {seccionActual === 3 && (
+                    {(isTablet ? seccionActual === 2 : seccionActual === 3) && (
                         <div>
-                            <h4 style={{ color: '#dd6b20' }}>3. Datos del Apoderado</h4>
+                            <h4 style={{ color: '#dd6b20' }}>{isTablet ? 'Datos del Apoderado' : '3. Datos del Apoderado'}</h4>
                             <div className="alert alert-warning" style={{ marginBottom: '15px', fontSize: '0.9em' }}>
                                 Ingrese el RUT del apoderado. Si existe, se cargarán sus datos (excepto dirección).
                             </div>
@@ -338,17 +368,17 @@ const MatriculasTab = ({ mostrarMensaje }) => {
                         </div>
                     )}
 
-                    {seccionActual === 4 && (
-                        <div>
-                            <h4 style={{ color: '#2b6cb0' }}>4. Salud y Emergencias</h4>
+                    {(isTablet ? seccionActual === 1 : seccionActual === 4) && (
+                        <div style={isTablet ? { marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' } : undefined}>
+                            <h4 style={{ color: '#2b6cb0' }}>{isTablet ? 'Salud y Emergencias' : '4. Salud y Emergencias'}</h4>
                             <div className="form-group">
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <input type="checkbox" name="tiene_nee" checked={form.tiene_nee} onChange={handleChange} />
-                                    <span>¿NEE?</span>
-                                    <span className="tooltip-nee">
+                                    <span>{isTablet ? '¿Necesidades Educativas Especiales?' : '¿NEE?'}</span>
+                                    {!isTablet && <span className="tooltip-nee">
                                         <span className="tooltip-icon">?</span>
                                         <span className="tooltip-text">NEE: Necesidades Educativas Especiales</span>
-                                    </span>
+                                    </span>}
                                 </label>
                             </div>
                             {form.tiene_nee && (<div className="form-group"><label>Detalle</label><textarea name="detalle_nee" className="form-control" value={form.detalle_nee} onChange={handleChange} /></div>)}
@@ -361,12 +391,20 @@ const MatriculasTab = ({ mostrarMensaje }) => {
                         </div>
                     )}
 
-                    {seccionActual === 5 && (
-                        <div>
-                            <h4 style={{ color: '#2b6cb0' }}>5. Resumen Final</h4>
+                    {/* Colegio + Observaciones: desktop paso 5 / tablet paso 1 */}
+                    {(isTablet ? seccionActual === 1 : seccionActual === 5) && (
+                        <div style={isTablet ? { marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' } : undefined}>
+                            <h4 style={{ color: '#2b6cb0' }}>{isTablet ? 'Procedencia y Observaciones' : '5. Resumen Final'}</h4>
                             <div className="form-group"><label>Colegio Procedencia</label><input type="text" name="colegio_procedencia" className="form-control" value={form.colegio_procedencia} onChange={handleChange} /></div>
                             <div className="form-group"><label>Observaciones</label><textarea name="observaciones_apoderado" className="form-control" value={form.observaciones_apoderado} onChange={handleChange} /></div>
-                            <div style={{ marginTop: '30px', padding: '15px', background: '#ebf8ff', border: '1px solid #bee3f8', borderRadius: '8px' }}>
+                        </div>
+                    )}
+
+                    {/* Resumen confirmación: desktop paso 5 / tablet paso 2 */}
+                    {(isTablet ? seccionActual === 2 : seccionActual === 5) && (
+                        <div style={isTablet ? { marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' } : undefined}>
+                            {isTablet && <h4 style={{ color: '#2b6cb0' }}>Confirmación</h4>}
+                            <div style={{ marginTop: '15px', padding: '15px', background: '#ebf8ff', border: '1px solid #bee3f8', borderRadius: '8px' }}>
                                 <ul>
                                     <li><strong>Alumno:</strong> {form.nombres_alumno} {form.apellidos_alumno}</li>
                                     <li><strong>Curso Destino:</strong> {cursos.find(c => c.id == form.curso_asignado_id)?.nombre || '---'}</li>
@@ -378,7 +416,7 @@ const MatriculasTab = ({ mostrarMensaje }) => {
 
                     <div className="matricula-botones">
                         {seccionActual > 1 ? <button className="btn btn-secondary" onClick={anteriorPaso}>Atrás</button> : <div></div>}
-                        {seccionActual < 5 ? <button className="btn btn-primary" onClick={siguientePaso}>Siguiente &rarr;</button> :
+                        {seccionActual < totalPasos ? <button className="btn btn-primary" onClick={siguientePaso}>Siguiente &rarr;</button> :
                             <button className="btn btn-success btn-confirmar" onClick={handleSubmit} disabled={matriculando}>
                                 {matriculando ? 'Validando...' : 'CONFIRMAR MATRÍCULA'}
                             </button>

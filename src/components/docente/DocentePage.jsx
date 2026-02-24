@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useResponsive } from '../../hooks';
 import AsistenciaTab from './AsistenciaTab';
 import AgregarNotaTab from './AgregarNotaTab';
 import ModificarNotaTab from './ModificarNotaTab';
@@ -10,7 +9,6 @@ import { apiFetch } from '../../utils/api';
 import '../../styles/apoderado_menu.css';
 
 function DocentePage({ onCambiarVista, usuarioDocente }) {
-  const { isMobile } = useResponsive();
   const [tabActual, setTabActual] = useState(() => localStorage.getItem('docenteActiveTab') || 'asistencia');
 
   const [vistaActual, setVistaActual] = useState('menu');
@@ -172,62 +170,66 @@ function DocentePage({ onCambiarVista, usuarioDocente }) {
             <div className="logo">
               <span className="logo-icon">E</span>
             </div>
-            <div className="brand-text" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span style={{ fontSize: isMobile ? '8px' : '11px', textTransform: 'uppercase', opacity: 0.8, letterSpacing: '0.5px', color: '#cbd5e1' }}>Portal Docente</span>
-              <h1 style={{ margin: 0, fontSize: isMobile ? '10px' : '16px', lineHeight: '1.2' }}>{docenteActual.nombres} {docenteActual.apellidos}</h1>
+            <div className="brand-mobile">
+              <span className="rol-titulo">
+                {(establecimientoActual?.nombre || 'Establecimiento Educacional').toUpperCase()}
+              </span>
+              <span className="establecimiento-nombre">
+                {docenteActual.nombres} {docenteActual.apellidos}
+              </span>
             </div>
           </div>
           <div className="header-info">
-            {/* Selector de Establecimiento */}
-            <div className="establecimiento-selector" ref={dropdownRef}>
-              <button
-                className="establecimiento-btn"
-                onClick={() => establecimientosDocente.length > 1 && setEstablecimientoDropdownAbierto(!establecimientoDropdownAbierto)}
-                style={{ cursor: establecimientosDocente.length > 1 ? 'pointer' : 'default' }}
-              >
-                <span className="establecimiento-nombre">
-                  {cargandoEstablecimientos ? 'Cargando...' : (establecimientoActual?.nombre || 'Sin establecimiento')}
-                </span>
-                {establecimientosDocente.length > 1 && (
-                  <svg
-                    className={`establecimiento-arrow ${establecimientoDropdownAbierto ? 'rotated' : ''}`}
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+            {/* Selector de Establecimiento (solo si tiene más de uno) */}
+            {establecimientosDocente.length > 1 && (
+              <>
+                <div className="establecimiento-selector" ref={dropdownRef}>
+                  <button
+                    className="establecimiento-btn"
+                    onClick={() => setEstablecimientoDropdownAbierto(!establecimientoDropdownAbierto)}
+                    style={{ cursor: 'pointer' }}
                   >
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                )}
-              </button>
-              {establecimientoDropdownAbierto && establecimientosDocente.length > 1 && (
-                <div className="establecimiento-dropdown">
-                  {establecimientosDocente
-                    .filter(est => est.id !== establecimientoActual?.id)
-                    .map(est => (
-                      <button
-                        key={est.id}
-                        className="establecimiento-option"
-                        onClick={() => {
-                          setEstablecimientoActual(est);
-                          setEstablecimientoDropdownAbierto(false);
-                        }}
-                      >
-                        <span className="est-nombre">{est.nombre}</span>
-                        <span className="est-comuna">{est.comuna}</span>
-                      </button>
-                    ))
-                  }
+                    <span className="establecimiento-nombre">Cambiar</span>
+                    <svg
+                      className={`establecimiento-arrow ${establecimientoDropdownAbierto ? 'rotated' : ''}`}
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+                  {establecimientoDropdownAbierto && (
+                    <div className="establecimiento-dropdown">
+                      {establecimientosDocente
+                        .filter(est => est.id !== establecimientoActual?.id)
+                        .map(est => (
+                          <button
+                            key={est.id}
+                            className="establecimiento-option"
+                            onClick={() => {
+                              setEstablecimientoActual(est);
+                              setEstablecimientoDropdownAbierto(false);
+                            }}
+                          >
+                            <span className="est-nombre">{est.nombre}</span>
+                            <span className="est-comuna">{est.comuna}</span>
+                          </button>
+                        ))
+                      }
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <span className="header-separator">|</span>
-            {/* Nombre movido a la izquierda */}
+                <span className="header-separator">|</span>
+              </>
+            )}
+            <span className="user-info">Docente</span>
             <span className="current-date">{currentDate}</span>
             <button className="btn-logout" onClick={onCambiarVista} title="Cerrar Sesion">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

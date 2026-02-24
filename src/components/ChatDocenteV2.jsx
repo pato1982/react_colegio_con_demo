@@ -232,12 +232,12 @@ function ChatDocenteV2({ usuario, establecimientoId }) {
 
   // ==================== SOCKET.IO ====================
   useEffect(() => {
-    if (usuario?.id) {
+    if (chatAbierto && usuario?.id) {
       const socket = socketService.connect(usuario.id);
 
       const handleNuevoMensaje = (msg) => {
         // Si el mensaje es para la conversación actual abierta Y el chat está visible
-        if (chatAbierto && conversacionActual && String(msg.conversacion_id) === String(conversacionActual)) {
+        if (conversacionActual && String(msg.conversacion_id) === String(conversacionActual)) {
           setMensajes(prev => {
             // Evitar duplicados
             if (prev.some(m => String(m.id) === String(msg.id))) return prev;
@@ -315,6 +315,7 @@ function ChatDocenteV2({ usuario, establecimientoId }) {
       return () => {
         socket.off('nuevo_mensaje', handleNuevoMensaje);
         socket.off('chat_estado_actualizado', handleEstadoActualizado);
+        socketService.disconnect();
       };
     }
   }, [usuario?.id, conversacionActual, chatAbierto]);
@@ -748,7 +749,7 @@ function ChatDocenteV2({ usuario, establecimientoId }) {
         <div className="chatv2-content">
 
           {/* Columna 1: Navegación */}
-          <div className={`chatv2-nav ${!mostrarListaMobile ? 'hidden-mobile' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className={`chatv2-nav ${!mostrarListaMobile ? 'hidden-mobile' : ''}`}>
             <button
               className={`chatv2-nav-item ${vistaActiva === 'institucional' ? 'active' : ''}`}
               onClick={() => { setVistaActiva('institucional'); setCursoSeleccionado(null); setModoSeleccion(false); }}

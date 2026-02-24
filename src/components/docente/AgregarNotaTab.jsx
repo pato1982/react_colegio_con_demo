@@ -303,6 +303,14 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
     cargarAlumnosFiltro();
   }, [filtroCurso]);
 
+  // Auto-seleccionar primer curso en filtro para pre-cargar notas recientes
+  useEffect(() => {
+    if (cursos.length > 0 && !filtroCurso) {
+      setFiltroCurso(String(cursos[0].id));
+      setFiltroCursoNombre(cursos[0].nombre || '');
+    }
+  }, [cursos]);
+
   // Aplicar filtros a notas recientes
   useEffect(() => {
     cargarNotasRecientes(filtroCurso || null, filtroAlumno || null);
@@ -880,7 +888,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
 
         {(!showTabs || pestanaActiva === 'ultimas') && (
           <div className="column" style={{
-            height: isTablet ? '500px' : (isMobile ? 'calc(100vh - 200px)' : '100%'),
+            height: isTablet ? '500px' : (isMobile ? 'calc(100vh - 280px)' : '100%'),
             overflow: 'hidden'
           }}>
             {TablaUltimasNotas()}

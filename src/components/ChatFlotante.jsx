@@ -175,12 +175,12 @@ function ChatFlotante({ usuario, establecimientoId }) {
 
   // ==================== SOCKET.IO ====================
   useEffect(() => {
-    if (usuario?.id) {
+    if (chatAbierto && usuario?.id) {
       const socket = socketService.connect(usuario.id);
 
       const handleNuevoMensaje = (msg) => {
         // 1. Si el mensaje es para la conversación actual abierta
-        if (chatAbierto && conversacionActual && String(msg.conversacion_id) === String(conversacionActual)) {
+        if (conversacionActual && String(msg.conversacion_id) === String(conversacionActual)) {
           setMensajes(prev => {
             // Evitar duplicados
             if (prev.some(m => String(m.id) === String(msg.id))) return prev;
@@ -205,6 +205,7 @@ function ChatFlotante({ usuario, establecimientoId }) {
 
       return () => {
         socket.off('nuevo_mensaje', handleNuevoMensaje);
+        socketService.disconnect();
       };
     }
   }, [usuario?.id, conversacionActual, chatAbierto, cargarContactos]);

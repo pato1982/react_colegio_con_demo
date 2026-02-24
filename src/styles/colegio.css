@@ -2962,6 +2962,35 @@ select.form-control {
         padding: 10px 10px;
     }
 
+    .filtros-alumnos + .table-responsive.table-scroll {
+        max-height: calc((100vh - 280px) * 0.85);
+    }
+
+    .filtros-docentes + .table-responsive.table-scroll {
+        max-height: calc(100vh - 200px) !important;
+    }
+
+    .filtros-asignaciones + .table-responsive.table-scroll {
+        max-height: calc(100vh - 500px) !important;
+    }
+
+    .tabla-notas-curso-container .table-responsive.table-scroll {
+        max-height: calc(100vh - 490px) !important;
+    }
+
+    .filtros-alumnos .custom-select-options {
+        max-height: 252px;
+        overflow-y: auto;
+    }
+
+    .filtros-alumnos .dropdown-alumnos {
+        max-height: 210px !important;
+    }
+
+    .vn-tabla-container {
+        max-height: 40vh;
+    }
+
     /* Two columns en tablet - una columna */
     .two-columns {
         grid-template-columns: 1fr;
@@ -3123,7 +3152,7 @@ select.form-control {
 
     /* Docente Tablet */
     .docente-autocomplete-dropdown {
-        max-height: 180px;
+        max-height: 252px;
     }
 
     .docente-autocomplete-item {
@@ -5584,6 +5613,10 @@ select.form-control {
     overflow-y: auto;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     background: #fff;
+}
+
+.filtros-alumnos .dropdown-alumnos {
+    max-height: 150px;
 }
 
 /* ==================== ASIGNACIONES TAB - FILTROS ==================== */
@@ -8727,22 +8760,27 @@ th.dia-feriado .dia-numero {
     /* FIX: Tabs Arriba (Top Nav) */
     .chatv2-nav {
         display: flex !important;
-        flex-direction: row;
-        width: 100%;
-        height: 48px;
+        flex-direction: row !important;
+        width: 100% !important;
+        height: 40px;
         order: -1;
-        /* Mover al inicio */
         border-right: none;
         border-bottom: 1px solid #e2e8f0;
         border-top: none;
         background: #fff;
         z-index: 50;
+        padding: 0 !important;
+        gap: 0 !important;
+        justify-content: center;
     }
 
     .chatv2-nav-item {
         flex: 1;
         padding: 0;
+        flex-direction: row;
+        align-items: center;
         justify-content: center;
+        gap: 4px;
         border-radius: 0;
         border-bottom: 2px solid transparent;
         color: #64748b;
@@ -8755,16 +8793,14 @@ th.dia-feriado .dia-numero {
     }
 
     .chatv2-nav-item span {
-        font-size: 9px !important;
-        /* Texto nav mas chico */
+        font-size: 10px !important;
         margin-top: 0;
-        margin-left: 4px;
-        display: block !important;
+        margin-left: 0;
+        display: inline !important;
     }
 
     .chatv2-nav-item svg {
         width: 16px !important;
-        /* Icono nav mas chico */
         height: 16px !important;
     }
 
