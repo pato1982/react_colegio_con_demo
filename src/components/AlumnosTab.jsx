@@ -434,6 +434,21 @@ function AlumnosTab() {
   const { isMobile } = useResponsive();
   const { dropdownAbierto, setDropdownAbierto } = useDropdown();
 
+  // Formatear nombre para móvil: "Apellido1 A., Nombre1 N." → partes separadas
+  const formatNombreMobile = (nombreCompleto) => {
+    if (!nombreCompleto) return { apellidos: '', nombres: '' };
+    const [aps, noms] = nombreCompleto.split(',').map(s => s?.trim() || '');
+    const partesAp = aps.split(' ').filter(Boolean);
+    const partesNom = noms.split(' ').filter(Boolean);
+    const apFormateado = partesAp.length > 1
+      ? `${partesAp[0]} ${partesAp[1][0]}.`
+      : partesAp[0] || '';
+    const nomFormateado = partesNom.length > 1
+      ? `${partesNom[0]} ${partesNom[1][0]}.`
+      : partesNom[0] || '';
+    return { apellidos: apFormateado, nombres: nomFormateado };
+  };
+
   // Cerrar dropdown de alumnos al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -509,9 +524,12 @@ function AlumnosTab() {
   // Alumnos filtrados por texto de búsqueda (para el dropdown)
   const alumnosSugeridos = useMemo(() => {
     if (!filtros.busquedaAlumno || filtros.alumnoSeleccionado) return alumnosDelCursoFiltro;
+    const busqueda = filtros.busquedaAlumno.toLowerCase();
+    const busquedaSinFormato = busqueda.replace(/[.\-]/g, '');
     return alumnosDelCursoFiltro.filter(alumno =>
-      alumno.nombre_completo.toLowerCase().includes(filtros.busquedaAlumno.toLowerCase()) ||
-      alumno.rut.toLowerCase().includes(filtros.busquedaAlumno.toLowerCase())
+      alumno.nombre_completo.toLowerCase().includes(busqueda) ||
+      alumno.rut.toLowerCase().includes(busqueda) ||
+      alumno.rut.replace(/[.\-]/g, '').includes(busquedaSinFormato)
     );
   }, [alumnosDelCursoFiltro, filtros.busquedaAlumno, filtros.alumnoSeleccionado]);
 
@@ -677,16 +695,22 @@ function AlumnosTab() {
                           onMouseLeave={(e) => e.currentTarget.style.background = filtros.alumnoSeleccionado?.id === alumno.id ? '#eff6ff' : 'white'}
                         >
                           <div>
-                            <div style={{ fontWeight: '500', color: '#1e293b', fontSize: '14px' }}>
-                              {alumno.nombre_completo}
+                            <div style={{ fontWeight: '500', color: '#1e293b', fontSize: isMobile ? '12px' : '14px' }}>
+                              {isMobile ? (() => {
+                                const fmt = formatNombreMobile(alumno.nombre_completo);
+                                const primerNombre = (alumno.nombre_completo.split(',')[1]?.trim() || '').split(' ')[0];
+                                return `${fmt.apellidos} ${primerNombre}`;
+                              })() : alumno.nombre_completo}
                             </div>
                             <div style={{ color: '#94a3b8', fontSize: '12px' }}>
                               {alumno.rut}
                             </div>
                           </div>
-                          <div style={{ color: '#64748b', fontSize: '10px', whiteSpace: 'nowrap', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>
-                            {alumno.curso_nombre}
-                          </div>
+                          {!isMobile && (
+                            <div style={{ color: '#64748b', fontSize: '10px', whiteSpace: 'nowrap', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>
+                              {alumno.curso_nombre}
+                            </div>
+                          )}
                         </div>
                       ))
                     ) : filtros.busquedaAlumno ? (
@@ -724,18 +748,21 @@ function AlumnosTab() {
           <div className="table-responsive table-scroll">
             <table className="data-table">
               <thead>
-                <tr><th>Nombre Completo</th><th>RUT</th><th>Curso</th><th>Acciones</th></tr>
+                <tr><th>{isMobile ? 'Nombre' : 'Nombre Completo'}</th><th>RUT</th><th>Curso</th><th>Acciones</th></tr>
               </thead>
               <tbody>
                 {alumnosFiltrados.length > 0 ? alumnosFiltrados.map(alumno => (
                   <tr key={alumno.id}>
                     <td>
-                      {isMobile ? (
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{alumno.nombre_completo.split(',')[0]}</div>
-                          <div style={{ fontSize: '10px', color: '#64748b' }}>{alumno.nombre_completo.split(',')[1]?.trim()}</div>
-                        </div>
-                      ) : alumno.nombre_completo}
+                      {isMobile ? (() => {
+                        const fmt = formatNombreMobile(alumno.nombre_completo);
+                        return (
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{fmt.apellidos}</div>
+                            <div style={{ fontSize: '10px', color: '#64748b' }}>{fmt.nombres}</div>
+                          </div>
+                        );
+                      })() : alumno.nombre_completo}
                     </td>
                     <td>{alumno.rut}</td>
                     <td>{alumno.curso_nombre?.replace(/Básico|Basico|Básica|Basica/gi, 'B').replace(/Media/gi, 'M')}</td>

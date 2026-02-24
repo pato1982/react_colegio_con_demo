@@ -3712,7 +3712,7 @@ select.form-control {
 
     /* Tabla de alumnos compacta en movil */
     .table-responsive.table-scroll {
-        max-height: 260px;
+        max-height: 338px;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         border: 1px solid #e2e8f0;
@@ -3735,6 +3735,14 @@ select.form-control {
         word-wrap: break-word;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    .table-responsive.table-scroll .data-table th {
+        text-align: center;
+    }
+
+    .filtros-alumnos + .table-responsive.table-scroll {
+        max-height: 400px;
     }
 
     .table-responsive.table-scroll .data-table th:nth-child(1),
