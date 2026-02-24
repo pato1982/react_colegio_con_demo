@@ -29,6 +29,7 @@ function ProgresoTab({ docenteId, establecimientoId }) {
   const [cargandoCursos, setCargandoCursos] = useState(true);
   const [cargandoEstadisticas, setCargandoEstadisticas] = useState(false);
   const [error, setError] = useState('');
+  const [ultimaActualizacion, setUltimaActualizacion] = useState(null);
 
   // Estado para el popup de alumnos con bajo rendimiento
   const [popupBajoRendimiento, setPopupBajoRendimiento] = useState(false);
@@ -141,6 +142,7 @@ function ProgresoTab({ docenteId, establecimientoId }) {
 
       if (dataStats.success) {
         setEstadisticas(dataStats.data);
+        if (dataStats.ultimaActualizacion) setUltimaActualizacion(dataStats.ultimaActualizacion);
         if (dataNotas.success) setNotasDetalladas(dataNotas.data);
       }
     } catch (err) {
@@ -445,6 +447,11 @@ function ProgresoTab({ docenteId, establecimientoId }) {
 
       {estadisticas && !cargandoEstadisticas && (
         <>
+          {ultimaActualizacion && (
+            <div style={{ textAlign: 'right', marginTop: '12px', fontSize: '12px', color: '#94a3b8' }}>
+              Actualizado: {new Date(ultimaActualizacion).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
           <div className="docente-kpis-grid" style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)', gap: '12px' }}>
             <DocenteKPICard tipo="alumnos" valor={estadisticas.kpis.alumnosConNotas} label="Total Alumnos" variante="primary" />
             <DocenteKPICard tipo="aprobados" valor={estadisticas.kpis.aprobados} label="Aprobados" trend="up" trendValue={`${estadisticas.kpis.porcentajeAprobados}%`} variante="success" />

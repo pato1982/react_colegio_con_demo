@@ -71,6 +71,7 @@ function EstadisticasTab() {
 
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
+  const [ultimaActualizacion, setUltimaActualizacion] = useState(null);
 
   // Estado para popup de riesgo detallado
   const [popupRiesgo, setPopupRiesgo] = useState({
@@ -108,7 +109,7 @@ function EstadisticasTab() {
     setPopupRiesgo(prev => ({ ...prev, visible: false, alumnos: [] }));
   };
 
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
   const { dropdownAbierto, setDropdownAbierto } = useDropdown();
 
   // Cargar listas para selectores al montar
@@ -198,7 +199,10 @@ function EstadisticasTab() {
       const rankingData = await rankingRes.json();
       const distData = await distRes.json();
 
-      if (generalData.success) setDatosGenerales(generalData.data);
+      if (generalData.success) {
+        setDatosGenerales(generalData.data);
+        if (generalData.ultimaActualizacion) setUltimaActualizacion(generalData.ultimaActualizacion);
+      }
       if (asigData.success) setAsignaturasProm(asigData.data || []);
       if (rankingData.success) setRankingCursos(rankingData.data || []);
       if (distData.success) setDistribucion(distData.data);
@@ -385,7 +389,7 @@ function EstadisticasTab() {
     return {
       labels: asignaturasProm.map(a => {
         const nombre = a.asignatura || a.curso;
-        return isMobile ? abreviarAsignatura(nombre) : nombre;
+        return (isMobile || isTablet) ? abreviarAsignatura(nombre) : nombre;
       }),
       datasets: [{
         data: asignaturasProm.map(a => a.promedio),
@@ -395,11 +399,11 @@ function EstadisticasTab() {
     };
   };
 
-  const barOptionsMobile = isMobile ? {
+  const barOptionsMobile = (isMobile || isTablet) ? {
     ...barOptions,
     scales: {
       ...barOptions.scales,
-      x: { ticks: { font: { size: 8 }, maxRotation: 45, minRotation: 0 } }
+      x: { ticks: { font: { size: isMobile ? 8 : 9 }, maxRotation: 45, minRotation: 0, autoSkip: false } }
     }
   } : barOptions;
 
@@ -618,6 +622,11 @@ function EstadisticasTab() {
         <div className="stats-vista-titulo">
           <h2>
             {vistaActual === 'general' && 'Resumen General del Establecimiento'}
+            {vistaActual === 'general' && ultimaActualizacion && (
+              <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 400, marginLeft: '12px' }}>
+                Actualizado: {new Date(ultimaActualizacion).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
             {vistaActual === 'curso' && (cursoSeleccionado ? `Curso: ${getNombreCurso()}` : 'Seleccione un curso')}
             {vistaActual === 'docente' && (docenteSeleccionado
               ? (asignaturaDocenteSeleccionada

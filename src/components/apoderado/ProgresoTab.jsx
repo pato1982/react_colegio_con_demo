@@ -39,6 +39,7 @@ function ProgresoTab({ pupilo, notas: notasProp }) {
   const [notasRaw, setNotasRaw] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
+  const [ultimaActualizacion, setUltimaActualizacion] = useState(null);
 
   // Cargar datos de progreso cuando cambia el pupilo
   useEffect(() => {
@@ -112,6 +113,7 @@ function ProgresoTab({ pupilo, notas: notasProp }) {
 
         if (dataProgreso.success) {
           setDatosProgreso(dataProgreso.data);
+          if (dataProgreso.ultimaActualizacion) setUltimaActualizacion(dataProgreso.ultimaActualizacion);
         } else {
           setError(dataProgreso.error || 'Error al cargar progreso');
         }
@@ -343,6 +345,12 @@ function ProgresoTab({ pupilo, notas: notasProp }) {
           }
         }
       `}</style>
+
+      {ultimaActualizacion && (
+        <div style={{ textAlign: 'right', marginBottom: '8px', fontSize: '12px', color: '#94a3b8' }}>
+          Actualizado: {new Date(ultimaActualizacion).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      )}
 
       <div className="progreso-grid">
         {/* Gráfico Mensual */}

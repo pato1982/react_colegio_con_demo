@@ -6,6 +6,7 @@ const registroRoutes = require('./routes/registro');
 const chatRoutes = require('./routes/chat');
 const contactoRoutes = require('./routes/contacto');
 const matriculasRoutes = require('./routes/matriculas');
+const cache = require('./cache');
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const app = express();
@@ -915,10 +916,13 @@ app.get('/api/apoderado/mis-pupilos/:apoderadoId', async (req, res) => {
 app.get('/api/apoderado/pupilo/:alumnoId/notas', async (req, res) => {
     const { alumnoId } = req.params;
     const { establecimiento_id } = req.query;
+    const anioActual = new Date().getFullYear();
+
+    const cacheKey = `prog_apod_notas_${alumnoId}_${establecimiento_id || 'all'}_${anioActual}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
-        const anioActual = new Date().getFullYear();
-
         const [notas] = await pool.query(`
             SELECT
                 asig.nombre as asignatura,
@@ -937,10 +941,12 @@ app.get('/api/apoderado/pupilo/:alumnoId/notas', async (req, res) => {
             ORDER BY asig.nombre ASC, n.trimestre ASC, n.numero_evaluacion ASC
         `, establecimiento_id ? [alumnoId, anioActual, establecimiento_id] : [alumnoId, anioActual]);
 
-        res.json({
+        const resultado = {
             success: true,
             data: notas
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
 
     } catch (error) {
         console.error('Error obteniendo notas del pupilo:', error);
@@ -1056,9 +1062,13 @@ app.post('/api/apoderado/comunicado/:comunicadoId/marcar-leido', async (req, res
 // GET /api/apoderado/pupilo/:alumnoId/progreso - Obtener estadisticas de progreso del pupilo
 app.get('/api/apoderado/pupilo/:alumnoId/progreso', async (req, res) => {
     const { alumnoId } = req.params;
+    const anioActual = new Date().getFullYear();
+
+    const cacheKey = `prog_apod_${alumnoId}_${anioActual}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
-        const anioActual = new Date().getFullYear();
 
         // 0. Obtener el establecimiento_id y curso_id actual del alumno
         const [alumnoInfo] = await pool.query(`
@@ -1192,7 +1202,7 @@ app.get('/api/apoderado/pupilo/:alumnoId/progreso', async (req, res) => {
             };
         }
 
-        res.json({
+        const resultado = {
             success: true,
             data: {
                 estadisticas,
@@ -1202,7 +1212,9 @@ app.get('/api/apoderado/pupilo/:alumnoId/progreso', async (req, res) => {
                 promediosMensuales,
                 asignaturas
             }
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
 
     } catch (error) {
         console.error('Error obteniendo progreso del pupilo:', error);
@@ -2298,6 +2310,11 @@ app.get('/api/docente/:docenteId/notas/por-asignatura', async (req, res) => {
         });
     }
 
+    const anioActual = new Date().getFullYear();
+    const cacheKey = `prog_doc_notas_${docenteId}_${curso_id}_${asignatura_id}_${alumno_id || 'all'}_${anioActual}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
+
     try {
         // Primero obtener todos los alumnos del curso ordenados alfabéticamente
         let alumnosQuery = `
@@ -2382,7 +2399,9 @@ app.get('/api/docente/:docenteId/notas/por-asignatura', async (req, res) => {
             };
         });
 
-        res.json({ success: true, data: resultado });
+        const respuesta = { success: true, data: resultado };
+        cache.set(cacheKey, respuesta);
+        res.json({ ...respuesta, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener notas por asignatura:', error);
         res.status(500).json({ success: false, error: 'Error al obtener notas' });
@@ -3893,6 +3912,10 @@ app.get('/api/estadisticas/general', async (req, res) => {
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
 
+    const cacheKey = `est_general_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
+
     try {
         // Ejecutar todas las queries en paralelo
         const [
@@ -3962,7 +3985,7 @@ app.get('/api/estadisticas/general', async (req, res) => {
             }
         });
 
-        res.json({
+        const resultado = {
             success: true,
             data: {
                 promedioGeneral: parseFloat(notasStats[0]?.promedioGeneral) || 0,
@@ -3975,7 +3998,9 @@ app.get('/api/estadisticas/general', async (req, res) => {
                 tendenciaMensual: tendenciaFiltrada,
                 meses: mesesFiltrados
             }
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener estadísticas generales:', error);
         res.status(500).json({ success: false, error: 'Error al obtener estadísticas generales' });
@@ -3986,6 +4011,10 @@ app.get('/api/estadisticas/general', async (req, res) => {
 app.get('/api/estadisticas/general/asignaturas', async (req, res) => {
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_asignaturas_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         const [rows] = await pool.query(`
@@ -3999,7 +4028,9 @@ app.get('/api/estadisticas/general/asignaturas', async (req, res) => {
             ORDER BY promedio DESC
         `, [establecimiento_id, anio]);
 
-        res.json({ success: true, data: rows });
+        const resultado = { success: true, data: rows };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener promedios por asignatura:', error);
         res.status(500).json({ success: false, error: 'Error al obtener promedios por asignatura' });
@@ -4010,6 +4041,10 @@ app.get('/api/estadisticas/general/asignaturas', async (req, res) => {
 app.get('/api/estadisticas/general/ranking-cursos', async (req, res) => {
     const { establecimiento_id = 1, anio_academico, limite = 5 } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_ranking_${establecimiento_id}_${anio}_${limite}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         const [rows] = await pool.query(`
@@ -4025,7 +4060,9 @@ app.get('/api/estadisticas/general/ranking-cursos', async (req, res) => {
             LIMIT ?
         `, [establecimiento_id, anio, parseInt(limite)]);
 
-        res.json({ success: true, data: rows });
+        const resultado = { success: true, data: rows };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener ranking de cursos:', error);
         res.status(500).json({ success: false, error: 'Error al obtener ranking de cursos' });
@@ -4036,6 +4073,10 @@ app.get('/api/estadisticas/general/ranking-cursos', async (req, res) => {
 app.get('/api/estadisticas/general/distribucion', async (req, res) => {
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_distribucion_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         const [rows] = await pool.query(`
@@ -4051,14 +4092,16 @@ app.get('/api/estadisticas/general/distribucion', async (req, res) => {
             ) as promedios
         `, [establecimiento_id, anio]);
 
-        res.json({
+        const resultado = {
             success: true,
             data: {
                 destacados: parseInt(rows[0]?.destacados) || 0,
                 regulares: parseInt(rows[0]?.regulares) || 0,
                 enRiesgo: parseInt(rows[0]?.enRiesgo) || 0
             }
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener distribución:', error);
         res.status(500).json({ success: false, error: 'Error al obtener distribución' });
@@ -4074,6 +4117,10 @@ app.get('/api/estadisticas/curso/:cursoId', async (req, res) => {
     const { cursoId } = req.params;
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_curso_${cursoId}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         // Info del curso
@@ -4145,7 +4192,7 @@ app.get('/api/estadisticas/curso/:cursoId', async (req, res) => {
             }
         });
 
-        res.json({
+        const resultado = {
             success: true,
             data: {
                 curso: cursoInfo[0],
@@ -4158,7 +4205,9 @@ app.get('/api/estadisticas/curso/:cursoId', async (req, res) => {
                 tendencia: tendenciaFiltradaCurso,
                 meses: mesesFiltradosCurso
             }
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener estadísticas del curso:', error);
         res.status(500).json({ success: false, error: 'Error al obtener estadísticas del curso' });
@@ -4170,6 +4219,10 @@ app.get('/api/estadisticas/curso/:cursoId/asignaturas', async (req, res) => {
     const { cursoId } = req.params;
     const { anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_curso_asig_${cursoId}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         const [rows] = await pool.query(`
@@ -4184,7 +4237,9 @@ app.get('/api/estadisticas/curso/:cursoId/asignaturas', async (req, res) => {
             ORDER BY promedio DESC
         `, [cursoId, anio]);
 
-        res.json({ success: true, data: rows });
+        const resultado = { success: true, data: rows };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener asignaturas del curso:', error);
         res.status(500).json({ success: false, error: 'Error al obtener asignaturas del curso' });
@@ -4195,6 +4250,10 @@ app.get('/api/estadisticas/curso/:cursoId/asignaturas', async (req, res) => {
 app.get('/api/estadisticas/cursos', async (req, res) => {
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_lista_cursos_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached.data);
 
     try {
         const [rows] = await pool.query(`
@@ -4212,7 +4271,9 @@ app.get('/api/estadisticas/cursos', async (req, res) => {
             ORDER BY c.nivel, c.grado, c.nombre
         `, [anio, establecimiento_id, anio]);
 
-        res.json({ success: true, data: rows });
+        const resultado = { success: true, data: rows };
+        cache.set(cacheKey, resultado);
+        res.json(resultado);
     } catch (error) {
         console.error('Error al obtener cursos:', error);
         res.status(500).json({ success: false, error: 'Error al obtener cursos' });
@@ -4227,6 +4288,10 @@ app.get('/api/estadisticas/cursos', async (req, res) => {
 app.get('/api/estadisticas/docentes', async (req, res) => {
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_lista_docentes_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached.data);
 
     try {
         const [rows] = await pool.query(`
@@ -4248,7 +4313,9 @@ app.get('/api/estadisticas/docentes', async (req, res) => {
             ORDER BY d.apellidos, d.nombres
         `, [anio, establecimiento_id]);
 
-        res.json({ success: true, data: rows });
+        const resultado = { success: true, data: rows };
+        cache.set(cacheKey, resultado);
+        res.json(resultado);
     } catch (error) {
         console.error('Error al obtener docentes:', error);
         res.status(500).json({ success: false, error: 'Error al obtener docentes' });
@@ -4260,6 +4327,10 @@ app.get('/api/estadisticas/docente/:docenteId', async (req, res) => {
     const { docenteId } = req.params;
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_docente_${docenteId}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         // Info del docente
@@ -4327,7 +4398,7 @@ app.get('/api/estadisticas/docente/:docenteId', async (req, res) => {
         const destacados = kpiRendimiento[0]?.destacados || 0;
         const riesgo = kpiRendimiento[0]?.riesgo || 0;
 
-        res.json({
+        const resultado = {
             success: true,
             data: {
                 docente: docenteInfo[0],
@@ -4340,7 +4411,9 @@ app.get('/api/estadisticas/docente/:docenteId', async (req, res) => {
                 riesgo: riesgo,
                 regulares: (alumnosCount[0]?.totalAlumnos || 0) - destacados - riesgo
             }
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener info del docente:', error);
         res.status(500).json({ success: false, error: 'Error al obtener info del docente' });
@@ -4352,6 +4425,10 @@ app.get('/api/estadisticas/docente/:docenteId/asignatura/:asignaturaId', async (
     const { docenteId, asignaturaId } = req.params;
     const { anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_docente_asig_${docenteId}_${asignaturaId}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         // Promedio y aprobación del docente en esa asignatura
@@ -4398,7 +4475,7 @@ app.get('/api/estadisticas/docente/:docenteId/asignatura/:asignaturaId', async (
             }
         });
 
-        res.json({
+        const resultado = {
             success: true,
             data: {
                 promedio: parseFloat(stats[0]?.promedio) || 0,
@@ -4408,7 +4485,9 @@ app.get('/api/estadisticas/docente/:docenteId/asignatura/:asignaturaId', async (
                 tendencia: tendenciaFiltradaDoc,
                 meses: mesesFiltradosDoc
             }
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener estadísticas del docente por asignatura:', error);
         res.status(500).json({ success: false, error: 'Error al obtener estadísticas del docente' });
@@ -4423,6 +4502,10 @@ app.get('/api/estadisticas/docente/:docenteId/asignatura/:asignaturaId', async (
 app.get('/api/estadisticas/asignaturas', async (req, res) => {
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_lista_asignaturas_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached.data);
 
     try {
         const [rows] = await pool.query(`
@@ -4439,7 +4522,9 @@ app.get('/api/estadisticas/asignaturas', async (req, res) => {
             ORDER BY asig.nombre
         `, [anio, establecimiento_id]);
 
-        res.json({ success: true, data: rows });
+        const resultado = { success: true, data: rows };
+        cache.set(cacheKey, resultado);
+        res.json(resultado);
     } catch (error) {
         console.error('Error al obtener asignaturas:', error);
         res.status(500).json({ success: false, error: 'Error al obtener asignaturas' });
@@ -4557,6 +4642,10 @@ app.get('/api/estadisticas/asignatura/:asignaturaId', async (req, res) => {
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
 
+    const cacheKey = `est_asig_${asignaturaId}_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
+
     try {
         // Info de la asignatura
         const [asigInfo] = await pool.query(`
@@ -4619,7 +4708,7 @@ app.get('/api/estadisticas/asignatura/:asignaturaId', async (req, res) => {
             }
         });
 
-        res.json({
+        const resultado = {
             success: true,
             data: {
                 asignatura: asigInfo[0],
@@ -4631,7 +4720,9 @@ app.get('/api/estadisticas/asignatura/:asignaturaId', async (req, res) => {
                 tendencia: tendenciaFiltradaAsig,
                 meses: mesesFiltradosAsig
             }
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener estadísticas de asignatura:', error);
         res.status(500).json({ success: false, error: 'Error al obtener estadísticas de asignatura' });
@@ -4643,6 +4734,10 @@ app.get('/api/estadisticas/asignatura/:asignaturaId/por-curso', async (req, res)
     const { asignaturaId } = req.params;
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_asig_porcurso_${asignaturaId}_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         const [rows] = await pool.query(`
@@ -4657,7 +4752,9 @@ app.get('/api/estadisticas/asignatura/:asignaturaId/por-curso', async (req, res)
             ORDER BY promedio DESC
         `, [asignaturaId, establecimiento_id, anio]);
 
-        res.json({ success: true, data: rows });
+        const resultado = { success: true, data: rows };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener asignatura por curso:', error);
         res.status(500).json({ success: false, error: 'Error al obtener asignatura por curso' });
@@ -4672,6 +4769,10 @@ app.get('/api/estadisticas/asignatura/:asignaturaId/por-curso', async (req, res)
 app.get('/api/estadisticas/asistencia/general', async (req, res) => {
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_asist_general_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         // Stats generales de asistencia
@@ -4727,7 +4828,7 @@ app.get('/api/estadisticas/asistencia/general', async (req, res) => {
             }
         });
 
-        res.json({
+        const resultado = {
             success: true,
             data: {
                 promedioAsistencia: parseFloat(stats[0]?.promedioAsistencia) || 0,
@@ -4736,7 +4837,9 @@ app.get('/api/estadisticas/asistencia/general', async (req, res) => {
                 bajoUmbral85: bajoUmbral[0]?.cantidad || 0,
                 asistenciaMensual
             }
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener estadísticas de asistencia general:', error);
         res.status(500).json({ success: false, error: 'Error al obtener estadísticas de asistencia' });
@@ -4748,6 +4851,10 @@ app.get('/api/estadisticas/asistencia/curso/:cursoId', async (req, res) => {
     const { cursoId } = req.params;
     const { anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_asist_curso_${cursoId}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         // Stats de asistencia del curso
@@ -4803,7 +4910,7 @@ app.get('/api/estadisticas/asistencia/curso/:cursoId', async (req, res) => {
             }
         });
 
-        res.json({
+        const resultado = {
             success: true,
             data: {
                 promedioAsistencia: parseFloat(stats[0]?.promedioAsistencia) || 0,
@@ -4812,7 +4919,9 @@ app.get('/api/estadisticas/asistencia/curso/:cursoId', async (req, res) => {
                 bajoUmbral85: bajoUmbral[0]?.cantidad || 0,
                 asistenciaMensual
             }
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener asistencia del curso:', error);
         res.status(500).json({ success: false, error: 'Error al obtener asistencia del curso' });
@@ -4823,6 +4932,10 @@ app.get('/api/estadisticas/asistencia/curso/:cursoId', async (req, res) => {
 app.get('/api/estadisticas/asistencia/por-curso', async (req, res) => {
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_asist_porcurso_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         const [rows] = await pool.query(`
@@ -4838,7 +4951,9 @@ app.get('/api/estadisticas/asistencia/por-curso', async (req, res) => {
             ORDER BY promedioAsistencia DESC
         `, [establecimiento_id, anio]);
 
-        res.json({ success: true, data: rows });
+        const resultado = { success: true, data: rows };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener asistencia por curso:', error);
         res.status(500).json({ success: false, error: 'Error al obtener asistencia por curso' });
@@ -4849,6 +4964,10 @@ app.get('/api/estadisticas/asistencia/por-curso', async (req, res) => {
 app.get('/api/estadisticas/asistencia/ranking', async (req, res) => {
     const { establecimiento_id = 1, anio_academico } = req.query;
     const anio = anio_academico || new Date().getFullYear();
+
+    const cacheKey = `est_asist_ranking_${establecimiento_id}_${anio}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
 
     try {
         const [rows] = await pool.query(`
@@ -4863,7 +4982,9 @@ app.get('/api/estadisticas/asistencia/ranking', async (req, res) => {
             ORDER BY promedioAsistencia DESC
         `, [establecimiento_id, anio]);
 
-        res.json({ success: true, data: rows });
+        const resultado = { success: true, data: rows };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
     } catch (error) {
         console.error('Error al obtener ranking de asistencia:', error);
         res.status(500).json({ success: false, error: 'Error al obtener ranking de asistencia' });
@@ -4886,8 +5007,12 @@ app.get('/api/docente/:docenteId/progreso/estadisticas', async (req, res) => {
         });
     }
 
+    const anioActual = new Date().getFullYear();
+    const cacheKey = `prog_doc_${docenteId}_${curso_id}_${asignatura_id}_${trimestre || 'all'}_${anioActual}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json({ ...cached.data, ultimaActualizacion: cached.timestamp });
+
     try {
-        const anioActual = new Date().getFullYear();
 
         // 1. Obtener todos los alumnos del curso
         const [alumnosCurso] = await pool.query(`
@@ -5068,7 +5193,7 @@ app.get('/api/docente/:docenteId/progreso/estadisticas', async (req, res) => {
                 };
             });
 
-        res.json({
+        const resultado = {
             success: true,
             data: {
                 kpis: {
@@ -5087,7 +5212,9 @@ app.get('/api/docente/:docenteId/progreso/estadisticas', async (req, res) => {
                 top5,
                 alumnosAtencion
             }
-        });
+        };
+        cache.set(cacheKey, resultado);
+        res.json({ ...resultado, ultimaActualizacion: Date.now() });
 
     } catch (error) {
         console.error('Error al obtener estadísticas de progreso:', error);
@@ -5111,29 +5238,7 @@ app.get('/api/health', async (req, res) => {
 // Iniciar servidor http (con socket.io)
 server.listen(PORT, async () => {
     console.log(`\n🚀 Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`📋 Endpoints disponibles:`);
-    console.log(`   -- Autenticación --`);
-    console.log(`   POST /api/auth/login    - Iniciar sesión`);
-    console.log(`   POST /api/auth/logout   - Cerrar sesión`);
-    console.log(`   GET  /api/auth/me       - Verificar sesión`);
-    console.log(`   -- Registro --`);
-    console.log(`   POST /api/registro/validar-codigo    - Validar código admin`);
-    console.log(`   POST /api/registro/validar-docente   - Validar pre-registro docente`);
-    console.log(`   POST /api/registro/validar-apoderado - Validar pre-registro apoderado`);
-    console.log(`   POST /api/registro/admin      - Registrar administrador`);
-    console.log(`   POST /api/registro/docente    - Registrar docente`);
-    console.log(`   POST /api/registro/apoderado  - Registrar apoderado`);
-    console.log(`   -- General --`);
-    console.log(`   GET  /api/health        - Estado del servidor`);
-    console.log(`   GET  /api/establecimientos - Listar establecimientos`);
-    console.log(`   GET  /api/cursos        - Listar cursos`);
-    console.log(`   -- Alumnos --`);
-    console.log(`   GET  /api/alumnos       - Listar alumnos`);
-    console.log(`   GET  /api/alumnos/por-curso - Alumnos agrupados por curso`);
-    console.log(`   POST /api/alumnos       - Crear alumno`);
-    console.log(`   PUT  /api/alumnos/:id   - Actualizar alumno`);
-    console.log(`   DELETE /api/alumnos/:id - Eliminar alumno\n`);
 
-    // Comentado para modo demo (evitar errores de conexión si no hay DB local)
-    // await testConnection();
+    // Precalentar caché de estadísticas al iniciar + cada 30 min
+    cache.startWarmupSchedule(PORT);
 });
