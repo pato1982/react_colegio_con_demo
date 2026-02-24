@@ -386,7 +386,7 @@ function AsignacionesTab() {
                   </div>
                 </div>
               </div>
-              <div className="table-responsive table-scroll" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+              <div className="table-responsive table-scroll">
                 <table className="data-table tabla-asignaciones">
                   <thead>
                     <tr>

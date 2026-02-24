@@ -27,11 +27,13 @@ function Header({ usuario, onCerrarSesion }) {
           </div>
           <div className="brand-mobile">
             <span className="rol-titulo">
-              {usuario.nombres && usuario.apellidos
-                ? `${usuario.nombres} ${usuario.apellidos}`.toUpperCase()
-                : (usuario.tipo_usuario || 'USUARIO').toUpperCase()}
+              {(usuario.nombre_establecimiento || 'Establecimiento Educacional').toUpperCase()}
             </span>
-            <span className="establecimiento-nombre">{usuario.nombre_establecimiento || 'Establecimiento Educacional'}</span>
+            <span className="establecimiento-nombre">
+              {usuario.nombres && usuario.apellidos
+                ? `${usuario.nombres} ${usuario.apellidos}`
+                : (usuario.tipo_usuario || 'Usuario')}
+            </span>
           </div>
         </div>
         <div className="header-info">

@@ -104,9 +104,9 @@ body {
 .brand-mobile {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     flex: 1;
-    text-align: center;
+    text-align: left;
 }
 
 .brand-mobile .rol-titulo {
@@ -906,6 +906,7 @@ select.form-control {
     color: white;
     position: sticky;
     top: 0;
+    z-index: 2;
 }
 
 .data-table th {
@@ -3531,6 +3532,14 @@ select.form-control {
         white-space: nowrap;
     }
 
+    .filtros-asignaciones + .table-responsive.table-scroll {
+        max-height: 420px;
+    }
+
+    .filtros-docentes + .table-responsive.table-scroll {
+        max-height: 440px;
+    }
+
     /* Todos los selects mas pequeños en movil */
     select.form-control {
         font-size: 11px;
@@ -3742,7 +3751,7 @@ select.form-control {
     }
 
     .filtros-alumnos + .table-responsive.table-scroll {
-        max-height: 400px;
+        max-height: 480px;
     }
 
     .table-responsive.table-scroll .data-table th:nth-child(1),
@@ -5029,11 +5038,13 @@ select.form-control {
 
     /* Header movil - tamaños reducidos */
     .brand-mobile .rol-titulo {
-        font-size: 12px;
+        font-size: 11px;
     }
 
     .brand-mobile .establecimiento-nombre {
-        font-size: 8px;
+        font-size: 9px;
+        white-space: nowrap;
+        overflow: visible;
     }
 
     /* Notas input movil */
@@ -5063,14 +5074,17 @@ select.form-control {
         margin-left: -26px;
         margin-right: -26px;
         width: calc(100% + 52px);
-        overflow: visible;
+        overflow: hidden;
+        max-width: 100vw;
     }
 
     .tabla-notas-curso-container .table-responsive.table-scroll {
         overflow: auto !important;
         -webkit-overflow-scrolling: touch;
-        max-height: 260px;
+        max-height: 320px;
         margin: 0;
+        padding: 0;
+        border: none;
         border-radius: 6px;
         display: block;
     }
@@ -5080,6 +5094,7 @@ select.form-control {
         width: max-content !important;
         min-width: max-content !important;
         table-layout: auto !important;
+        margin-left: 0 !important;
         margin-right: 40px !important;
     }
 
@@ -5088,11 +5103,11 @@ select.form-control {
         white-space: nowrap !important;
     }
 
-    .tabla-notas-curso-container .celda-nombre,
-    .tabla-notas-curso-container .th-nombre {
+    /* Columna nombre fija a la izquierda al hacer scroll horizontal */
+    .tabla-notas-curso-container .celda-nombre {
         min-width: 130px !important;
         width: 130px !important;
-        padding-left: 8px !important;
+        padding-left: 0 !important;
         padding-right: 6px !important;
         text-align: left !important;
         overflow: visible !important;
@@ -5100,12 +5115,22 @@ select.form-control {
         position: sticky !important;
         left: 0 !important;
         background: #ffffff !important;
-        z-index: 2 !important;
+        z-index: 1 !important;
+        box-shadow: 2px 0 4px rgba(0,0,0,0.08) !important;
     }
 
+    /* Esquina: nombre en header = fija izquierda + arriba */
     .tabla-notas-curso-container .th-nombre {
+        min-width: 130px !important;
+        width: 130px !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        text-align: center !important;
+        position: sticky !important;
+        left: 0 !important;
         background: #0d1f33 !important;
         z-index: 3 !important;
+        box-shadow: 2px 0 4px rgba(0,0,0,0.15) !important;
     }
 
     .tabla-notas-curso-container .celda-nota {
@@ -5120,6 +5145,16 @@ select.form-control {
         text-overflow: unset !important;
         font-size: 11px !important;
         padding: 2px 4px !important;
+    }
+
+    .asistencia-titulo-periodo {
+        font-size: 10px !important;
+        margin: 6px 0 10px !important;
+        white-space: nowrap;
+    }
+
+    .leyenda-notas {
+        text-align: center;
     }
 }
 

@@ -112,14 +112,16 @@ function EstadisticasTab() {
   const { dropdownAbierto, setDropdownAbierto } = useDropdown();
 
   // Cargar listas para selectores al montar
+  // Cargar listas y datos generales en paralelo al montar
   useEffect(() => {
     cargarListas();
+    cargarDatosGenerales();
   }, []);
 
-  // Cargar datos según vista activa
+  // Cargar datos según vista activa (excepto general que ya se cargó al montar)
   useEffect(() => {
     if (vistaActual === 'general') {
-      cargarDatosGenerales();
+      if (!datosGenerales) cargarDatosGenerales();
     } else if (vistaActual === 'asistencia') {
       cargarDatosAsistencia(cursoAsistenciaSeleccionado);
     }
@@ -343,7 +345,7 @@ function EstadisticasTab() {
 
   // Generadores de datos para gráficos
   const getTendenciaData = () => ({
-    labels: datosGenerales?.meses || ['Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+    labels: (datosGenerales?.meses || ['Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']).filter(m => m !== 'Ene' && m !== 'Feb'),
     datasets: [{
       data: datos.tendencia || datos.tendenciaMensual || [],
       borderColor: '#1e3a5f',
@@ -353,13 +355,38 @@ function EstadisticasTab() {
     }]
   });
 
+  // Abreviar nombre de asignatura para móvil
+  const abreviarAsignatura = (nombre) => {
+    if (!nombre) return '';
+    const abreviaturas = {
+      'Matemáticas': 'Mat',
+      'Lenguaje y Comunicación': 'Leng',
+      'Ciencias Naturales': 'CsNat',
+      'Historia y Geografía': 'Hist',
+      'Inglés': 'Ing',
+      'Educación Física': 'EdFís',
+      'Artes Visuales': 'Artes',
+      'Música': 'Mús',
+      'Tecnología': 'Tec',
+      'Orientación': 'Orie',
+      'Biología': 'Bio',
+      'Física': 'Fís',
+      'Química': 'Quím',
+      'Filosofía': 'Filo'
+    };
+    return abreviaturas[nombre] || nombre.substring(0, 4);
+  };
+
   const getAsignaturasData = () => {
     if (asignaturasProm.length === 0) {
       return { labels: [], datasets: [{ data: [], backgroundColor: [] }] };
     }
 
     return {
-      labels: asignaturasProm.map(a => a.asignatura || a.curso),
+      labels: asignaturasProm.map(a => {
+        const nombre = a.asignatura || a.curso;
+        return isMobile ? abreviarAsignatura(nombre) : nombre;
+      }),
       datasets: [{
         data: asignaturasProm.map(a => a.promedio),
         backgroundColor: asignaturasProm.map(a => getColorByValue(a.promedio)),
@@ -367,6 +394,14 @@ function EstadisticasTab() {
       }]
     };
   };
+
+  const barOptionsMobile = isMobile ? {
+    ...barOptions,
+    scales: {
+      ...barOptions.scales,
+      x: { ticks: { font: { size: 8 }, maxRotation: 45, minRotation: 0 } }
+    }
+  } : barOptions;
 
   const getDistribucionData = () => {
     // Si estamos en vista general, usamos los datos del endpoint de distribución global
@@ -715,7 +750,7 @@ function EstadisticasTab() {
         {!cargando && vistaActual !== 'asistencia' && datos && (
           <div className="stats-graficos-grid">
             <GraficoCard titulo={getTituloAsignaturas()} badge={getBadgeAsignaturas()}>
-              <Bar data={getAsignaturasData()} options={barOptions} />
+              <Bar data={getAsignaturasData()} options={barOptionsMobile} />
             </GraficoCard>
 
             <GraficoCard

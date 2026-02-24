@@ -356,6 +356,23 @@ function DocentesTab() {
     return asignaturasDB.filter(asig => asignaturasIds.has(asig.id));
   }, [docentesDB, asignaturasDB]);
 
+  // Asignaturas filtradas: si hay docente seleccionado, solo sus asignaturas
+  const asignaturasFiltradas = useMemo(() => {
+    if (!filtros.docenteId) return asignaturasConDocentes;
+    const docente = docentesDB.find(d => d.id === parseInt(filtros.docenteId));
+    if (!docente || !docente.asignaturas) return [];
+    const ids = new Set(docente.asignaturas.map(a => a.id));
+    return asignaturasConDocentes.filter(a => ids.has(a.id));
+  }, [asignaturasConDocentes, docentesDB, filtros.docenteId]);
+
+  // Docentes filtrados para dropdown: si hay asignatura seleccionada, solo los que la imparten
+  const docentesDelDropdown = useMemo(() => {
+    if (!filtros.asignaturaId) return docentesDB;
+    return docentesDB.filter(d =>
+      (d.asignaturas || []).some(a => a.id === parseInt(filtros.asignaturaId))
+    );
+  }, [docentesDB, filtros.asignaturaId]);
+
   // Filtrar docentes - filtros independientes o combinados
   const docentesFiltrados = useMemo(() => {
     return docentesDB.filter(docente => {
@@ -536,7 +553,7 @@ function DocentesTab() {
                       {dropdownAbierto === 'filtroDocente' && (
                         <div className="custom-select-options">
                           <div className="custom-select-option" onClick={() => { setFiltros({ ...filtros, docenteId: '', docenteNombre: '' }); setDropdownAbierto(null); }}>Todos los docentes</div>
-                          {docentesDB.map(docente => (
+                          {docentesDelDropdown.map(docente => (
                             <div
                               key={docente.id}
                               className={`custom-select-option ${filtros.docenteId === String(docente.id) ? 'selected' : ''}`}
@@ -562,7 +579,7 @@ function DocentesTab() {
                       {dropdownAbierto === 'filtroAsignatura' && (
                         <div className="custom-select-options">
                           <div className="custom-select-option" onClick={() => { setFiltros({ ...filtros, asignaturaId: '', asignaturaNombre: '' }); setDropdownAbierto(null); }}>Todas las asignaturas</div>
-                          {asignaturasConDocentes.map(asig => (
+                          {asignaturasFiltradas.map(asig => (
                             <div
                               key={asig.id}
                               className={`custom-select-option ${filtros.asignaturaId === String(asig.id) ? 'selected' : ''}`}

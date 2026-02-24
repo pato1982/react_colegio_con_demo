@@ -626,7 +626,7 @@ function AsistenciaTab() {
           {/* KPIs Mensuales (Curso + Mes) */}
           {filtros.cursoId && (
             <>
-              <h4 style={{ margin: '10px 0 15px', color: '#64748b', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <h4 className="asistencia-titulo-periodo" style={{ margin: '10px 0 15px', color: '#64748b', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Estadísticas del Periodo ({mesNombre} - {filtros.curso})
               </h4>
               <div className="asistencia-stats" style={{ marginBottom: '25px' }}>

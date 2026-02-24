@@ -3894,69 +3894,71 @@ app.get('/api/estadisticas/general', async (req, res) => {
     const anio = anio_academico || new Date().getFullYear();
 
     try {
-        // Promedio general y tasa de aprobación
-        const [notasStats] = await pool.query(`
-            SELECT
-                ROUND(AVG(nota), 1) as promedioGeneral,
-                ROUND(SUM(CASE WHEN nota >= 4.0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as tasaAprobacion,
-                COUNT(DISTINCT alumno_id) as totalAlumnosConNotas
-            FROM tb_notas
-            WHERE establecimiento_id = ? AND anio_academico = ? AND activo = 1 AND nota IS NOT NULL
-        `, [establecimiento_id, anio]);
-
-        // Total de alumnos activos
-        const [alumnosCount] = await pool.query(`
-            SELECT COUNT(DISTINCT a.id) as totalAlumnos
-            FROM tb_alumnos a
-            INNER JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id
-            WHERE ae.establecimiento_id = ? AND ae.anio_academico = ? AND ae.activo = 1 AND a.activo = 1
-        `, [establecimiento_id, anio]);
-
-        // Total de docentes activos
-        const [docentesCount] = await pool.query(`
-            SELECT COUNT(DISTINCT d.id) as totalDocentes
-            FROM tb_docentes d
-            INNER JOIN tb_docente_establecimiento de ON d.id = de.docente_id
-            WHERE de.establecimiento_id = ? AND de.activo = 1 AND d.activo = 1
-        `, [establecimiento_id]);
-
-        // Alumnos destacados (promedio >= 6.0) y en riesgo (promedio < 4.0)
-        const [alumnosCategoria] = await pool.query(`
-            SELECT
-                SUM(CASE WHEN promedio >= 6.0 THEN 1 ELSE 0 END) as alumnosDestacados,
-                SUM(CASE WHEN promedio < 4.0 THEN 1 ELSE 0 END) as alumnosRiesgo
-            FROM (
-                SELECT alumno_id, ROUND(AVG(nota), 1) as promedio
+        // Ejecutar todas las queries en paralelo
+        const [
+            [notasStats],
+            [alumnosCount],
+            [docentesCount],
+            [alumnosCategoria],
+            [asistenciaStats],
+            [tendencia]
+        ] = await Promise.all([
+            pool.query(`
+                SELECT
+                    ROUND(AVG(nota), 1) as promedioGeneral,
+                    ROUND(SUM(CASE WHEN nota >= 4.0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as tasaAprobacion,
+                    COUNT(DISTINCT alumno_id) as totalAlumnosConNotas
                 FROM tb_notas
                 WHERE establecimiento_id = ? AND anio_academico = ? AND activo = 1 AND nota IS NOT NULL
-                GROUP BY alumno_id
-            ) as promedios
-        `, [establecimiento_id, anio]);
+            `, [establecimiento_id, anio]),
+            pool.query(`
+                SELECT COUNT(DISTINCT a.id) as totalAlumnos
+                FROM tb_alumnos a
+                INNER JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id
+                WHERE ae.establecimiento_id = ? AND ae.anio_academico = ? AND ae.activo = 1 AND a.activo = 1
+            `, [establecimiento_id, anio]),
+            pool.query(`
+                SELECT COUNT(DISTINCT d.id) as totalDocentes
+                FROM tb_docentes d
+                INNER JOIN tb_docente_establecimiento de ON d.id = de.docente_id
+                WHERE de.establecimiento_id = ? AND de.activo = 1 AND d.activo = 1
+            `, [establecimiento_id]),
+            pool.query(`
+                SELECT
+                    SUM(CASE WHEN promedio >= 6.0 THEN 1 ELSE 0 END) as alumnosDestacados,
+                    SUM(CASE WHEN promedio < 4.0 THEN 1 ELSE 0 END) as alumnosRiesgo
+                FROM (
+                    SELECT alumno_id, ROUND(AVG(nota), 1) as promedio
+                    FROM tb_notas
+                    WHERE establecimiento_id = ? AND anio_academico = ? AND activo = 1 AND nota IS NOT NULL
+                    GROUP BY alumno_id
+                ) as promedios
+            `, [establecimiento_id, anio]),
+            pool.query(`
+                SELECT
+                    ROUND(SUM(CASE WHEN estado IN ('presente', 'atrasado') THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as asistencia
+                FROM tb_asistencia
+                WHERE establecimiento_id = ? AND anio_academico = ? AND activo = 1
+            `, [establecimiento_id, anio]),
+            pool.query(`
+                SELECT
+                    MONTH(fecha_evaluacion) as mes,
+                    ROUND(AVG(nota), 2) as promedio
+                FROM tb_notas
+                WHERE establecimiento_id = ? AND anio_academico = ? AND activo = 1 AND nota IS NOT NULL AND fecha_evaluacion IS NOT NULL
+                GROUP BY MONTH(fecha_evaluacion)
+                ORDER BY mes
+            `, [establecimiento_id, anio])
+        ]);
 
-        // Porcentaje de asistencia general
-        const [asistenciaStats] = await pool.query(`
-            SELECT
-                ROUND(SUM(CASE WHEN estado IN ('presente', 'atrasado') THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as asistencia
-            FROM tb_asistencia
-            WHERE establecimiento_id = ? AND anio_academico = ? AND activo = 1
-        `, [establecimiento_id, anio]);
-
-        // Tendencia mensual (promedios por mes)
-        const [tendencia] = await pool.query(`
-            SELECT
-                MONTH(fecha_evaluacion) as mes,
-                ROUND(AVG(nota), 2) as promedio
-            FROM tb_notas
-            WHERE establecimiento_id = ? AND anio_academico = ? AND activo = 1 AND nota IS NOT NULL AND fecha_evaluacion IS NOT NULL
-            GROUP BY MONTH(fecha_evaluacion)
-            ORDER BY mes
-        `, [establecimiento_id, anio]);
-
-        const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-        const tendenciaMensual = Array(12).fill(null);
+        const todosMeses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        // Solo meses del periodo escolar (marzo a diciembre)
+        const mesesFiltrados = [];
+        const tendenciaFiltrada = [];
         tendencia.forEach(t => {
-            if (t.mes >= 1 && t.mes <= 12) {
-                tendenciaMensual[t.mes - 1] = parseFloat(t.promedio);
+            if (t.mes >= 3 && t.mes <= 12) {
+                mesesFiltrados.push(todosMeses[t.mes - 1]);
+                tendenciaFiltrada.push(parseFloat(t.promedio));
             }
         });
 
@@ -3970,8 +3972,8 @@ app.get('/api/estadisticas/general', async (req, res) => {
                 alumnosDestacados: parseInt(alumnosCategoria[0]?.alumnosDestacados) || 0,
                 alumnosRiesgo: parseInt(alumnosCategoria[0]?.alumnosRiesgo) || 0,
                 asistencia: parseFloat(asistenciaStats[0]?.asistencia) || 0,
-                tendenciaMensual: tendenciaMensual.filter(t => t !== null),
-                meses: meses
+                tendenciaMensual: tendenciaFiltrada,
+                meses: mesesFiltrados
             }
         });
     } catch (error) {
@@ -4133,10 +4135,13 @@ app.get('/api/estadisticas/curso/:cursoId', async (req, res) => {
             ORDER BY mes
         `, [cursoId, anio]);
 
-        const tendenciaMensual = Array(12).fill(null);
+        const todosMesesCurso = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const mesesFiltradosCurso = [];
+        const tendenciaFiltradaCurso = [];
         tendencia.forEach(t => {
-            if (t.mes >= 1 && t.mes <= 12) {
-                tendenciaMensual[t.mes - 1] = parseFloat(t.promedio);
+            if (t.mes >= 3 && t.mes <= 12) {
+                mesesFiltradosCurso.push(todosMesesCurso[t.mes - 1]);
+                tendenciaFiltradaCurso.push(parseFloat(t.promedio));
             }
         });
 
@@ -4150,7 +4155,8 @@ app.get('/api/estadisticas/curso/:cursoId', async (req, res) => {
                 destacados: parseInt(alumnosCategoria[0]?.destacados) || 0,
                 riesgo: parseInt(alumnosCategoria[0]?.riesgo) || 0,
                 asistencia: parseFloat(asistenciaStats[0]?.asistencia) || 0,
-                tendencia: tendenciaMensual.filter(t => t !== null)
+                tendencia: tendenciaFiltradaCurso,
+                meses: mesesFiltradosCurso
             }
         });
     } catch (error) {
@@ -4382,10 +4388,13 @@ app.get('/api/estadisticas/docente/:docenteId/asignatura/:asignaturaId', async (
             ORDER BY mes
         `, [docenteId, asignaturaId, anio]);
 
-        const tendenciaMensual = Array(12).fill(null);
+        const todosMesesDoc = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const mesesFiltradosDoc = [];
+        const tendenciaFiltradaDoc = [];
         tendencia.forEach(t => {
-            if (t.mes >= 1 && t.mes <= 12) {
-                tendenciaMensual[t.mes - 1] = parseFloat(t.promedio);
+            if (t.mes >= 3 && t.mes <= 12) {
+                mesesFiltradosDoc.push(todosMesesDoc[t.mes - 1]);
+                tendenciaFiltradaDoc.push(parseFloat(t.promedio));
             }
         });
 
@@ -4396,7 +4405,8 @@ app.get('/api/estadisticas/docente/:docenteId/asignatura/:asignaturaId', async (
                 aprobacion: parseFloat(stats[0]?.aprobacion) || 0,
                 totalAlumnos: stats[0]?.totalAlumnos || 0,
                 promediosPorCurso,
-                tendencia: tendenciaMensual.filter(t => t !== null)
+                tendencia: tendenciaFiltradaDoc,
+                meses: mesesFiltradosDoc
             }
         });
     } catch (error) {
@@ -4599,10 +4609,13 @@ app.get('/api/estadisticas/asignatura/:asignaturaId', async (req, res) => {
             ORDER BY mes
         `, [asignaturaId, establecimiento_id, anio]);
 
-        const tendenciaMensual = Array(12).fill(null);
+        const todosMesesAsig = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const mesesFiltradosAsig = [];
+        const tendenciaFiltradaAsig = [];
         tendencia.forEach(t => {
-            if (t.mes >= 1 && t.mes <= 12) {
-                tendenciaMensual[t.mes - 1] = parseFloat(t.promedio);
+            if (t.mes >= 3 && t.mes <= 12) {
+                mesesFiltradosAsig.push(todosMesesAsig[t.mes - 1]);
+                tendenciaFiltradaAsig.push(parseFloat(t.promedio));
             }
         });
 
@@ -4615,7 +4628,8 @@ app.get('/api/estadisticas/asignatura/:asignaturaId', async (req, res) => {
                 mejorCurso,
                 peorCurso,
                 docentes: docentesCount[0]?.docentes || 0,
-                tendencia: tendenciaMensual.filter(t => t !== null)
+                tendencia: tendenciaFiltradaAsig,
+                meses: mesesFiltradosAsig
             }
         });
     } catch (error) {
