@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import '../styles/login.css';
-import { login, esModoDemo } from '../services/authService';
+import { login, esModoDemo, solicitarRecuperacion } from '../services/authService';
 
 function LoginPage({ onVolver, onLoginExitoso }) {
   const [formData, setFormData] = useState({
@@ -52,11 +52,14 @@ function LoginPage({ onVolver, onLoginExitoso }) {
       return;
     }
     setCargando(true);
-    // Simular llamada al backend por ahora
-    setTimeout(() => {
-      setCargando(false);
+    try {
+      await solicitarRecuperacion(formData.email);
       setMensajeExito(true);
-    }, 1500);
+    } catch {
+      setError('Error de conexión. Intente nuevamente.');
+    } finally {
+      setCargando(false);
+    }
   };
 
   const handleSubmit = async (e) => {

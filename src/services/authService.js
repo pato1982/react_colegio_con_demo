@@ -25,6 +25,23 @@ export const restablecerPassword = async (token, password) => {
 };
 
 /**
+ * Solicita recuperación de contraseña
+ * @param {string} email
+ */
+export const solicitarRecuperacion = async (email) => {
+  try {
+    const response = await fetch(`${config.apiBaseUrl}/auth/recuperar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: 'Error de conexión' };
+  }
+};
+
+/**
  * Valida las credenciales de login
  * @param {string} email - Email del usuario
  * @param {string} password - Contraseña del usuario
@@ -121,4 +138,5 @@ export default {
   verificarSesion,
   esModoDemo,
   restablecerPassword,
+  solicitarRecuperacion,
 };

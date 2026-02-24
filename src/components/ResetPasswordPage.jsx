@@ -28,7 +28,13 @@ const ResetPasswordPage = ({ token, onVolver }) => {
 
         if (res.success) {
             setMessage('Contraseña actualizada con éxito. Redirigiendo...');
+            // Limpiar token de la URL
+            window.history.replaceState({}, '', '/');
             setTimeout(onVolver, 3000);
+        } else if (res.error === 'expired') {
+            setError('expired');
+        } else if (res.error === 'invalid') {
+            setError('El enlace no es válido. Solicita uno nuevo.');
         } else {
             setError(res.error || 'Error al actualizar');
         }
@@ -44,27 +50,41 @@ const ResetPasswordPage = ({ token, onVolver }) => {
                         <p>Ingresa tu nueva clave</p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="login-form">
-                        {error && <div className="login-error" style={{ color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px', marginBottom: '10px', fontSize: '14px' }}>{error}</div>}
-                        {message && <div className="login-success" style={{ padding: '10px', background: '#d1fae5', color: '#065f46', borderRadius: '4px', textAlign: 'center', marginBottom: '15px', fontSize: '14px' }}>{message}</div>}
-
-                        <div className="form-group">
-                            <label>Nueva Contraseña</label>
-                            <div className="input-icon-wrapper">
-                                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Mínimo 6 caracteres" style={{ paddingLeft: '10px' }} />
+                    {error === 'expired' ? (
+                        <div className="login-form" style={{ textAlign: 'center' }}>
+                            <div style={{ color: '#dc2626', background: '#fee2e2', padding: '15px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px' }}>
+                                El enlace ha expirado. Los enlaces de recuperación son válidos por 1 hora.
                             </div>
+                            <button
+                                className="btn-login"
+                                onClick={() => { window.history.replaceState({}, '', '/'); onVolver(); }}
+                            >
+                                Solicitar nuevo enlace
+                            </button>
                         </div>
-                        <div className="form-group">
-                            <label>Confirmar Contraseña</label>
-                            <div className="input-icon-wrapper">
-                                <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required placeholder="Repite la contraseña" style={{ paddingLeft: '10px' }} />
-                            </div>
-                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmit} className="login-form">
+                            {error && <div className="login-error" style={{ color: '#dc2626', background: '#fee2e2', padding: '10px', borderRadius: '4px', marginBottom: '10px', fontSize: '14px' }}>{error}</div>}
+                            {message && <div className="login-success" style={{ padding: '10px', background: '#d1fae5', color: '#065f46', borderRadius: '4px', textAlign: 'center', marginBottom: '15px', fontSize: '14px' }}>{message}</div>}
 
-                        <button type="submit" className="btn-login" disabled={loading}>
-                            {loading ? 'Guardando...' : 'Cambiar Contraseña'}
-                        </button>
-                    </form>
+                            <div className="form-group">
+                                <label>Nueva Contraseña</label>
+                                <div className="input-icon-wrapper">
+                                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Mínimo 6 caracteres" style={{ paddingLeft: '10px' }} />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Confirmar Contraseña</label>
+                                <div className="input-icon-wrapper">
+                                    <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required placeholder="Repite la contraseña" style={{ paddingLeft: '10px' }} />
+                                </div>
+                            </div>
+
+                            <button type="submit" className="btn-login" disabled={loading}>
+                                {loading ? 'Guardando...' : 'Cambiar Contraseña'}
+                            </button>
+                        </form>
+                    )}
 
                     <div className="login-footer">
                         <button onClick={onVolver} className="btn-volver">Volver al inicio</button>

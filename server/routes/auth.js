@@ -1,8 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
 const mockData = require('../data/mockDataFull');
+const { enviarEmailRecuperacion } = require('../services/emailService');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'portal_estudiantil_secret_key_2024';
@@ -440,6 +442,93 @@ router.get('/me', async (req, res) => {
             success: false,
             message: 'Error interno del servidor'
         });
+    }
+});
+
+// ============================================
+// POST /api/auth/recuperar - Solicitar recuperación de contraseña
+// ============================================
+router.post('/recuperar', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ success: false, message: 'Email requerido' });
+    }
+
+    try {
+        const [usuarios] = await pool.query(
+            'SELECT u.id, u.email, COALESCE(a.nombres, d.nombres, ap.nombres) as nombres FROM tb_usuarios u LEFT JOIN tb_administradores a ON u.id = a.usuario_id LEFT JOIN tb_docentes d ON u.id = d.usuario_id LEFT JOIN tb_apoderados ap ON u.id = ap.usuario_id WHERE u.email = ? AND u.activo = 1',
+            [email]
+        );
+
+        if (usuarios.length > 0) {
+            const usuario = usuarios[0];
+            const token = crypto.randomBytes(32).toString('hex');
+            const expira = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+            await pool.query(
+                'UPDATE tb_usuarios SET reset_token = ?, reset_token_expira = ? WHERE id = ?',
+                [token, expira, usuario.id]
+            );
+
+            try {
+                await enviarEmailRecuperacion(email, token, usuario.nombres);
+            } catch (emailErr) {
+                console.error('Error enviando email de recuperación:', emailErr);
+            }
+        }
+
+        // Responder siempre igual por seguridad
+        res.json({ success: true, message: 'Si el correo está registrado, recibirás instrucciones' });
+    } catch (error) {
+        console.error('Error en recuperación:', error);
+        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+});
+
+// ============================================
+// POST /api/auth/reset-password - Cambiar contraseña con token
+// ============================================
+router.post('/reset-password', async (req, res) => {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+        return res.status(400).json({ success: false, error: 'Token y contraseña requeridos' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ success: false, error: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+
+    try {
+        const [usuarios] = await pool.query(
+            'SELECT id, reset_token_expira FROM tb_usuarios WHERE reset_token = ?',
+            [token]
+        );
+
+        if (usuarios.length === 0) {
+            return res.json({ success: false, error: 'invalid' });
+        }
+
+        const usuario = usuarios[0];
+
+        if (new Date(usuario.reset_token_expira) < new Date()) {
+            // Limpiar token expirado
+            await pool.query('UPDATE tb_usuarios SET reset_token = NULL, reset_token_expira = NULL WHERE id = ?', [usuario.id]);
+            return res.json({ success: false, error: 'expired' });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+
+        await pool.query(
+            'UPDATE tb_usuarios SET password_hash = ?, reset_token = NULL, reset_token_expira = NULL WHERE id = ?',
+            [passwordHash, usuario.id]
+        );
+
+        res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+        console.error('Error en reset-password:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
     }
 });
 
