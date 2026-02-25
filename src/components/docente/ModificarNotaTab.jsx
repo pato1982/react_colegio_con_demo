@@ -767,7 +767,7 @@ function ModificarNotaTab({ docenteId, establecimientoId, modalidad }) {
                   <th>Alumno</th>
                   {isNormalSize && <th>Asignatura</th>}
                   <th>Nota</th>
-                  <th>Trim.</th>
+                  <th>{periodos ? (periodos.nombreGenerico === 'Semestre' ? 'Sem.' : 'Trim.') : 'Trim.'}</th>
                   <th>Fecha</th>
                   <th>Acciones</th>
                 </tr>

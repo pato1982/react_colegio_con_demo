@@ -12,7 +12,7 @@ export const planesData = {
         items: [
           'Informacion completa del pupilo',
           'Libro de calificaciones',
-          'Notas por trimestre',
+          'Notas por periodo',
           'Promedios por asignatura',
           'Detalle de cada evaluacion',
           'Comunicados del colegio',
@@ -66,7 +66,7 @@ export const planesData = {
         items: [
           'Informacion completa del pupilo',
           'Libro de calificaciones',
-          'Notas por trimestre',
+          'Notas por periodo',
           'Promedios por asignatura',
           'Detalle de cada evaluacion',
           'Comunicados del colegio',
@@ -138,7 +138,7 @@ export const planesData = {
         items: [
           'Informacion completa del pupilo',
           'Libro de calificaciones',
-          'Notas por trimestre',
+          'Notas por periodo',
           'Promedios por asignatura',
           'Detalle de cada evaluacion',
           'Comunicados del colegio',

@@ -222,7 +222,7 @@ function ApoderadoPage({ onCambiarVista, usuario }) {
       id: 'notas',
       label: 'Libro de Notas',
       color: 'blue',
-      desc: 'Acceda al libro digital de calificaciones. Consulte el detalle de notas parciales por trimestre, promedios por asignatura y el promedio general acumulado del año escolar en tiempo real.',
+      desc: `Acceda al libro digital de calificaciones. Consulte el detalle de notas parciales por ${usuario?.modalidad_academica === 'semestral' ? 'semestre' : 'trimestre'}, promedios por asignatura y el promedio general acumulado del año escolar en tiempo real.`,
       badge: 'Calificaciones',
       icon: 'auto_stories',
       img: '/assets/navigation/notas.png'

@@ -308,9 +308,9 @@ function NotasPorCursoTab({ modalidad }) {
                     <thead>
                       <tr>
                         <th rowSpan="2" className="th-nombre">Alumno</th>
-                        {trimestres.map(trim => (
+                        {trimestres.map((trim, idx) => (
                           <th key={trim.id} colSpan={maxNotasPorTrimestre + 1} className="th-trimestre">
-                            T{trim.id}
+                            {periodos.labelsCortos[idx]}
                           </th>
                         ))}
                         <th rowSpan="2" className="th-promedio-final">P.F.</th>
