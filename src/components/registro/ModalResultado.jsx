@@ -15,7 +15,7 @@ const ErrorIcon = () => (
   </svg>
 );
 
-function ModalResultado({ visible, exito, mensaje, onCerrar }) {
+function ModalResultado({ visible, exito, mensaje, onCerrar, intentos }) {
   if (!visible) return null;
 
   return (
@@ -26,6 +26,11 @@ function ModalResultado({ visible, exito, mensaje, onCerrar }) {
         </div>
         <h3>{exito ? 'Registro Exitoso' : 'Error en el Registro'}</h3>
         <p>{mensaje}</p>
+        {intentos && !exito && (
+          <p style={{ color: '#e67e22', fontWeight: '600', fontSize: '0.9rem', marginTop: '8px' }}>
+            {intentos}
+          </p>
+        )}
         <button className="btn-modal-resultado" onClick={onCerrar}>
           {exito ? 'Continuar' : 'Entendido'}
         </button>

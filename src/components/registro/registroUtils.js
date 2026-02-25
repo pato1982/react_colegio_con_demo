@@ -27,8 +27,8 @@ export const getTituloRol = (tipoUsuario) => {
 export const getSubtituloPaso = (tipoUsuario, paso) => {
   if (tipoUsuario === 'administrador') {
     switch (paso) {
-      case 1: return 'Paso 1: Datos del administrador';
-      case 2: return 'Paso 2: Verificacion y contrasena';
+      case 1: return 'Paso 1: Datos y código de registro';
+      case 2: return 'Paso 2: Establecimiento y contraseña';
       default: return '';
     }
   }
@@ -59,7 +59,7 @@ export const validarPaso1 = (formData) => {
 };
 
 export const validarPaso1Admin = (formData) => {
-  if (!formData.nombres || !formData.rut || !formData.telefono || !formData.correo || !formData.establecimiento) {
+  if (!formData.nombres || !formData.rut || !formData.telefono || !formData.correo || !formData.codigo) {
     return { valid: false, error: 'Por favor complete todos los campos' };
   }
   return { valid: true };

@@ -11,7 +11,8 @@ function FormularioPassword({
   onTogglePassword,
   onToggleConfirmPassword,
   datosAutoLlenado,
-  onAutoLlenar
+  onAutoLlenar,
+  establecimiento
 }) {
   return (
     <>
@@ -19,6 +20,18 @@ function FormularioPassword({
         <button type="button" className="btn-autollenar" onClick={onAutoLlenar}>
           Auto-llenar (Demo)
         </button>
+      )}
+      {establecimiento && (
+        <div className="form-group form-group-full">
+          <label htmlFor="establecimiento-readonly">Establecimiento</label>
+          <input
+            type="text"
+            id="establecimiento-readonly"
+            value={establecimiento}
+            readOnly
+            style={{ backgroundColor: '#f0f0f0', cursor: 'not-allowed', fontWeight: '500' }}
+          />
+        </div>
       )}
       <div className="password-info">
         <p>La contrasena debe tener:</p>

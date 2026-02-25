@@ -54,6 +54,36 @@ export const obtenerCursos = async () => {
 };
 
 /**
+ * Valida el código de 12 dígitos + datos personales contra el preregistro de admin
+ * @param {string} codigo - Código de 12 dígitos
+ * @param {Object} datos - { rut, nombres, apellidos, email, telefono }
+ * @returns {Promise<Object>} { success, datos: { establecimiento, establecimiento_id }, error }
+ */
+export const validarCodigoAdmin = async (codigo, datos) => {
+  if (config.isDemoMode()) {
+    return { success: true, datos: { establecimiento: 'Establecimiento Demo', establecimiento_id: 1 }, error: null };
+  }
+
+  try {
+    const response = await fetch(`${config.apiBaseUrl}/registro/validar-codigo-admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo, ...datos }),
+    });
+
+    const data = await response.json();
+    return {
+      success: response.ok,
+      datos: data.datos || null,
+      error: data.message || null
+    };
+  } catch (error) {
+    console.error('Error validando código admin:', error);
+    return { success: false, datos: null, error: 'Error de conexión' };
+  }
+};
+
+/**
  * Valida el pre-registro de un administrador
  * @param {string} rut - RUT del administrador
  * @param {string} [email] - Email del administrador
@@ -240,6 +270,7 @@ export const esModoDemo = () => config.isDemoMode();
 export default {
   obtenerEstablecimientos,
   obtenerCursos,
+  validarCodigoAdmin,
   validarPreRegistroAdmin,
   validarPreRegistroDocente,
   validarPreRegistroApoderado,

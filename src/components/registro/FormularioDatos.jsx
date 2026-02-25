@@ -67,19 +67,18 @@ function FormularioDatos({
       </div>
 
       {tipoUsuario === 'administrador' && (
-        <div className="form-group">
-          <label htmlFor="establecimiento">Establecimiento *</label>
-          <select
-            id="establecimiento"
-            name="establecimiento"
-            value={formData.establecimiento}
+        <div className="form-group form-group-full">
+          <label htmlFor="codigo">Código de registro (12 dígitos) *</label>
+          <input
+            type="text"
+            id="codigo"
+            name="codigo"
+            value={formData.codigo || ''}
             onChange={onChange}
-          >
-            <option value="">Seleccione un establecimiento</option>
-            {establecimientos.map((est, index) => (
-              <option key={index} value={est}>{est}</option>
-            ))}
-          </select>
+            placeholder="XXX-XXX-XXX-XXX"
+            maxLength="15"
+            style={{ textTransform: 'uppercase', letterSpacing: '1px' }}
+          />
         </div>
       )}
     </>

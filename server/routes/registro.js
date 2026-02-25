@@ -90,8 +90,114 @@ const registrarFalloApoderado = async (establecimientoId, datosApoderado, datosA
 };
 
 // ============================================
-// POST /api/registro/validar-codigo - Validar código de administrador
+// POST /api/registro/validar-codigo-admin - Validar código de 12 dígitos + datos personales
 // ============================================
+router.post('/validar-codigo-admin', async (req, res) => {
+    const { codigo: codigoRaw, rut, nombres, apellidos, email, telefono } = req.body;
+
+    if (!codigoRaw || !rut || !nombres || !email) {
+        return res.status(400).json({
+            success: false,
+            message: 'Código, RUT, nombre y correo son requeridos'
+        });
+    }
+
+    // Normalizar código: quitar espacios y guiones
+    const codigo = codigoRaw.replace(/[\s\-]/g, '');
+
+    try {
+        // 1. Buscar código en tb_codigos_validacion (activo, no usado, no expirado, tipo administrador)
+        const [codigos] = await pool.query(`
+            SELECT cv.id as codigo_validacion_id, cv.codigo, cv.fecha_expiracion
+            FROM tb_codigos_validacion cv
+            WHERE cv.codigo = ?
+              AND cv.activo = 1
+              AND cv.usado = 0
+              AND cv.tipo = 'administrador'
+              AND (cv.fecha_expiracion IS NULL OR cv.fecha_expiracion > NOW())
+        `, [codigo]);
+
+        if (codigos.length === 0) {
+            await registrarFalloAdmin(null, { rut, nombres, apellidos, email, telefono }, codigo, 'codigo_invalido', req);
+            return res.status(400).json({
+                success: false,
+                message: 'Código inválido o expirado'
+            });
+        }
+
+        const codigoValidacion = codigos[0];
+
+        // 2. Buscar preregistro asociado al código
+        const [preregistros] = await pool.query(`
+            SELECT pa.*, e.nombre as establecimiento_nombre
+            FROM tb_preregistro_administradores pa
+            JOIN tb_establecimientos e ON pa.establecimiento_id = e.id
+            WHERE pa.codigo_validacion_id = ?
+              AND pa.activo = 1
+              AND pa.usado = 0
+        `, [codigoValidacion.codigo_validacion_id]);
+
+        if (preregistros.length === 0) {
+            await registrarFalloAdmin(null, { rut, nombres, apellidos, email, telefono }, codigo, 'codigo_sin_preregistro', req);
+            return res.status(400).json({
+                success: false,
+                message: 'No se encontró una invitación asociada a este código'
+            });
+        }
+
+        const preregistro = preregistros[0];
+
+        // 3. Comparar RUT (case-insensitive, sin puntos ni guión)
+        const normalizeRut = (r) => r.replace(/[.\-]/g, '').toUpperCase();
+        if (normalizeRut(rut) !== normalizeRut(preregistro.rut)) {
+            await registrarFalloAdmin(preregistro.establecimiento_id, { rut, nombres, apellidos, email, telefono }, codigo, 'rut_no_coincide', req);
+            return res.status(400).json({
+                success: false,
+                message: 'El RUT no coincide con la invitación'
+            });
+        }
+
+        // 4. Comparar email (case-insensitive)
+        if (email.toLowerCase() !== preregistro.email.toLowerCase()) {
+            await registrarFalloAdmin(preregistro.establecimiento_id, { rut, nombres, apellidos, email, telefono }, codigo, 'email_no_coincide', req);
+            return res.status(400).json({
+                success: false,
+                message: 'El correo electrónico no coincide con la invitación'
+            });
+        }
+
+        // 5. Comparar nombres+apellidos (flexible, case-insensitive)
+        const normalizeName = (n) => n.trim().toLowerCase().replace(/\s+/g, ' ');
+        const nombreCompleto = normalizeName(nombres + ' ' + (apellidos || ''));
+        const nombrePreregistro = normalizeName(preregistro.nombres + ' ' + preregistro.apellidos);
+        if (nombreCompleto !== nombrePreregistro) {
+            await registrarFalloAdmin(preregistro.establecimiento_id, { rut, nombres, apellidos, email, telefono }, codigo, 'nombre_no_coincide', req);
+            return res.status(400).json({
+                success: false,
+                message: 'El nombre no coincide con la invitación'
+            });
+        }
+
+        // Todo OK
+        res.json({
+            success: true,
+            datos: {
+                establecimiento: preregistro.establecimiento_nombre,
+                establecimiento_id: preregistro.establecimiento_id,
+                nombres: preregistro.nombres,
+                apellidos: preregistro.apellidos
+            }
+        });
+
+    } catch (error) {
+        console.error('Error validando código admin:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al validar los datos'
+        });
+    }
+});
+
 // ============================================
 // POST /api/registro/validar-admin - Validar RUT de administrador en pre-registro
 // ============================================
@@ -313,10 +419,11 @@ router.post('/validar-apoderado', async (req, res) => {
 // POST /api/registro/admin - Registrar administrador
 // ============================================
 router.post('/admin', async (req, res) => {
-    const { rut, nombres, apellidos, email, telefono, password } = req.body;
+    const { rut, nombres, apellidos, email, telefono, password, codigo: codigoRaw } = req.body;
+    const codigo = codigoRaw ? codigoRaw.replace(/[\s\-]/g, '') : '';
     const datosAdmin = { rut, nombres, apellidos, email, telefono };
 
-    if (!rut || !nombres || !apellidos || !email || !password) {
+    if (!rut || !nombres || !apellidos || !email || !password || !codigo) {
         return res.status(400).json({
             success: false,
             message: 'Todos los campos marcados como obligatorios son requeridos'
@@ -328,27 +435,38 @@ router.post('/admin', async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        // 1. Validar contra Pre-Registro (Invitación)
-        // Buscar invitación válida por RUT y Email
+        // 1. Validar código en tb_codigos_validacion
+        const [codigos] = await connection.query(`
+            SELECT id FROM tb_codigos_validacion
+            WHERE codigo = ? AND activo = 1 AND usado = 0 AND tipo = 'administrador'
+              AND (fecha_expiracion IS NULL OR fecha_expiracion > NOW())
+        `, [codigo]);
+
+        if (codigos.length === 0) {
+            await connection.rollback();
+            await registrarFalloAdmin(null, datosAdmin, codigo, 'codigo_invalido_registro', req);
+            return res.status(400).json({
+                success: false,
+                message: 'Código inválido o expirado.'
+            });
+        }
+
+        const codigoValidacionId = codigos[0].id;
+
+        // 2. Buscar preregistro vinculado al código
         const [preregistros] = await connection.query(`
             SELECT * FROM tb_preregistro_administradores
-            WHERE UPPER(rut) = UPPER(?) 
-              AND email = ?
-              AND activo = 1 
+            WHERE codigo_validacion_id = ?
+              AND activo = 1
               AND usado = 0
-        `, [rut, email]);
+        `, [codigoValidacionId]);
 
         if (preregistros.length === 0) {
             await connection.rollback();
-            // Buscar si existe pero ya fue usado o datos no coinciden
-            const [infoExtra] = await connection.query('SELECT usado FROM tb_preregistro_administradores WHERE rut = ?', [rut]);
-            let motivo = 'datos_no_coinciden';
-            if (infoExtra.length > 0 && infoExtra[0].usado === 1) motivo = 'invitacion_ya_usada';
-
-            await registrarFalloAdmin(null, datosAdmin, null, motivo, req);
+            await registrarFalloAdmin(null, datosAdmin, codigo, 'codigo_sin_preregistro', req);
             return res.status(400).json({
                 success: false,
-                message: 'No se encontró una invitación válida para estos datos o ya fue utilizada.'
+                message: 'No se encontró una invitación válida para este código.'
             });
         }
 
@@ -418,6 +536,13 @@ router.post('/admin', async (req, res) => {
             SET usado = 1, fecha_uso = NOW(), usuario_creado_id = ?
             WHERE id = ?
         `, [usuarioId, preregistro.id]);
+
+        // 9. Marcar código de validación como usado
+        await connection.query(`
+            UPDATE tb_codigos_validacion
+            SET usado = 1, usado_por_id = ?, fecha_uso = NOW()
+            WHERE id = ?
+        `, [usuarioId, codigoValidacionId]);
 
         await connection.commit();
 

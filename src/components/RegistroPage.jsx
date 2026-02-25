@@ -3,7 +3,7 @@ import '../styles/registro.css';
 import {
   obtenerEstablecimientos,
   obtenerCursos,
-  validarPreRegistroAdmin,
+  validarCodigoAdmin,
   validarPreRegistroDocente,
   validarPreRegistroApoderado,
   registrarUsuario,
@@ -31,7 +31,8 @@ function RegistroPage({ tipoUsuario, onVolver, onRegistroExitoso }) {
     rut: '',
     telefono: '',
     correo: '',
-    establecimiento: ''
+    establecimiento: '',
+    codigo: ''
   });
   const [alumnos, setAlumnos] = useState([
     { nombres: '', apellidos: '', rut: '', curso: '' }
@@ -43,6 +44,11 @@ function RegistroPage({ tipoUsuario, onVolver, onRegistroExitoso }) {
   const [error, setError] = useState('');
   const [modalResultado, setModalResultado] = useState({ visible: false, exito: false, mensaje: '' });
   const [cargando, setCargando] = useState(false);
+
+  // Estado para flujo admin con código
+  const [intentosFallidos, setIntentosFallidos] = useState(0);
+  const [datosPreregistro, setDatosPreregistro] = useState(null);
+  const [bloqueado, setBloqueado] = useState(false);
 
   const [establecimientos, setEstablecimientos] = useState([]);
   const [cursos, setCursos] = useState([]);
@@ -104,12 +110,60 @@ function RegistroPage({ tipoUsuario, onVolver, onRegistroExitoso }) {
     }
   };
 
-  const handleSiguiente = () => {
+  const handleSiguiente = async () => {
     setError('');
     if (tipoUsuario === 'administrador') {
+      if (paso !== 1) return;
       const result = validarPaso1Admin(formData);
-      if (paso === 1 && result.valid) setPaso(2);
-      else if (!result.valid) setError(result.error);
+      if (!result.valid) { setError(result.error); return; }
+
+      if (bloqueado) {
+        setModalResultado({
+          visible: true, exito: false,
+          mensaje: 'Ha superado el máximo de intentos permitidos. Comuníquese con Portal Estudiantil para obtener asistencia.'
+        });
+        return;
+      }
+
+      // Llamar al backend para validar código + datos
+      setCargando(true);
+      try {
+        const nombreCompleto = formData.nombres ? formData.nombres.trim() : '';
+        const ultimoEspacio = nombreCompleto.lastIndexOf(' ');
+        const nombres = ultimoEspacio !== -1 ? nombreCompleto.substring(0, ultimoEspacio) : nombreCompleto;
+        const apellidos = ultimoEspacio !== -1 ? nombreCompleto.substring(ultimoEspacio + 1) : '.';
+
+        const resultado = await validarCodigoAdmin(formData.codigo.replace(/[\s\-]/g, ''), {
+          rut: formData.rut,
+          nombres,
+          apellidos,
+          email: formData.correo,
+          telefono: formData.telefono
+        });
+
+        if (resultado.success) {
+          setDatosPreregistro(resultado.datos);
+          setPaso(2);
+        } else {
+          const nuevosIntentos = intentosFallidos + 1;
+          setIntentosFallidos(nuevosIntentos);
+          if (nuevosIntentos >= 5) {
+            setBloqueado(true);
+            setModalResultado({
+              visible: true, exito: false,
+              mensaje: 'Ha superado el máximo de intentos permitidos. Comuníquese con Portal Estudiantil para obtener asistencia.'
+            });
+          } else {
+            setModalResultado({
+              visible: true, exito: false,
+              mensaje: resultado.error || 'Los datos ingresados no coinciden con la invitación.',
+              intentos: `Intento ${nuevosIntentos} de 5`
+            });
+          }
+        }
+      } finally {
+        setCargando(false);
+      }
     } else if (tipoUsuario === 'docente') {
       const result = validarPaso1(formData);
       if (paso === 1 && result.valid) setPaso(2);
@@ -131,16 +185,6 @@ function RegistroPage({ tipoUsuario, onVolver, onRegistroExitoso }) {
     setError('');
     if (paso > 1) setPaso(paso - 1);
     else onVolver();
-  };
-
-  const validarPreRegistroAdminLocal = async () => {
-    // Para admin validamos RUT y Email contra la invitación
-    const resultado = await validarPreRegistroAdmin(formData.rut, formData.correo);
-    if (!resultado.success) {
-      setModalResultado({ visible: true, exito: false, mensaje: resultado.error });
-      return false;
-    }
-    return true;
   };
 
   const validarPreRegistroDocenteLocal = async () => {
@@ -186,11 +230,13 @@ function RegistroPage({ tipoUsuario, onVolver, onRegistroExitoso }) {
         datosRegistro.apellidos = nombreCompleto.substring(ultimoEspacio + 1);
       } else {
         datosRegistro.nombres = nombreCompleto;
-        datosRegistro.apellidos = '.'; // Valor por defecto si no hay apellido para pasar validación
+        datosRegistro.apellidos = '.';
       }
 
       if (tipoUsuario === 'administrador' && paso === 2) {
-        valido = await validarPreRegistroAdminLocal();
+        // Ya se validó en paso 1 con el código, enviar codigo en los datos
+        datosRegistro.codigo = formData.codigo.replace(/[\s\-]/g, '');
+        valido = true;
       } else if (tipoUsuario === 'docente' && paso === 2) {
         valido = await validarPreRegistroDocenteLocal();
       } else if (tipoUsuario === 'apoderado' && paso === 3) {
@@ -209,7 +255,7 @@ function RegistroPage({ tipoUsuario, onVolver, onRegistroExitoso }) {
 
   const cerrarModalResultado = () => {
     if (modalResultado.exito) onRegistroExitoso();
-    setModalResultado({ visible: false, exito: false, mensaje: '' });
+    setModalResultado({ visible: false, exito: false, mensaje: '', intentos: null });
   };
 
   const esUltimoPaso = () => {
@@ -279,6 +325,7 @@ function RegistroPage({ tipoUsuario, onVolver, onRegistroExitoso }) {
                 onToggleConfirmPassword={() => setShowConfirmPassword(!showConfirmPassword)}
                 datosAutoLlenado={datosAutoLlenado}
                 onAutoLlenar={(tipoUsuario === 'administrador' && paso === 2) ? autoLlenarPaso2Admin : autoLlenarPaso3}
+                establecimiento={tipoUsuario === 'administrador' && datosPreregistro ? datosPreregistro.establecimiento : null}
               />
             )}
 
@@ -291,8 +338,8 @@ function RegistroPage({ tipoUsuario, onVolver, onRegistroExitoso }) {
                   {cargando ? 'Creando cuenta...' : 'Crear cuenta'}
                 </button>
               ) : (
-                <button type="button" className="btn-registrar" onClick={handleSiguiente}>
-                  Siguiente
+                <button type="button" className="btn-registrar" disabled={cargando || bloqueado} onClick={handleSiguiente}>
+                  {cargando ? 'Validando...' : 'Siguiente'}
                 </button>
               )}
             </div>
@@ -309,6 +356,7 @@ function RegistroPage({ tipoUsuario, onVolver, onRegistroExitoso }) {
         exito={modalResultado.exito}
         mensaje={modalResultado.mensaje}
         onCerrar={cerrarModalResultado}
+        intentos={modalResultado.intentos}
       />
     </div>
   );
