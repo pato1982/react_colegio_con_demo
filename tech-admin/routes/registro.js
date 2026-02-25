@@ -2,16 +2,6 @@ const express = require('express');
 const { pool } = require('../../server/config/database');
 const router = express.Router();
 
-// GET /api/registro/establecimientos
-router.get('/registro/establecimientos', async (req, res) => {
-  try {
-    const [rows] = await pool.query('SELECT id, nombre FROM tb_establecimientos WHERE activo = 1 ORDER BY nombre');
-    res.json({ data: rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // POST /api/registro/admin — Crear pre-registro de administrador con código
 router.post('/registro/admin', async (req, res) => {
   const { rut, nombres, apellidos, email, telefono, establecimiento, codigo: codigoRaw,
@@ -28,17 +18,9 @@ router.post('/registro/admin', async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // Determinar si es establecimiento existente o nuevo
-    let establecimientoId = null;
-    let nombreEstablecimiento = null;
-    const [existeEst] = await connection.query(
-      'SELECT id FROM tb_establecimientos WHERE nombre = ?', [establecimiento]
-    );
-    if (existeEst.length > 0) {
-      establecimientoId = existeEst[0].id;
-    } else {
-      nombreEstablecimiento = establecimiento;
-    }
+    // Siempre es establecimiento nuevo (se crea al momento del registro del admin)
+    const establecimientoId = null;
+    const nombreEstablecimiento = establecimiento;
 
     // Verificar que el RUT no tenga ya un pre-registro activo
     const [existeRut] = await connection.query(
@@ -70,8 +52,8 @@ router.post('/registro/admin', async (req, res) => {
        direccion_establecimiento || null, comuna_establecimiento || null,
        region_establecimiento || null, telefono_establecimiento || null,
        email_establecimiento || null,
-       nombreEstablecimiento ? (modalidad_academica || 'trimestral') : null,
-       nombreEstablecimiento && estructura_cursos ? JSON.stringify(estructura_cursos) : null,
+       modalidad_academica || 'trimestral',
+       estructura_cursos ? JSON.stringify(estructura_cursos) : null,
        rut, nombres, apellidos, email, telefono || null, codigoId]
     );
 

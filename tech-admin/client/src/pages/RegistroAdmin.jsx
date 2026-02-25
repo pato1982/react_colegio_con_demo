@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { api } from '../api'
 
 function formatRut(value) {
@@ -52,24 +52,6 @@ export default function RegistroAdmin() {
   const [codigo, setCodigo] = useState('')
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState(null)
-  const [establecimientos, setEstablecimientos] = useState([])
-
-  // Cargar lista de establecimientos existentes
-  useEffect(() => {
-    api('/registro/establecimientos').then(res => {
-      if (res.data) setEstablecimientos(res.data)
-    }).catch(() => {})
-  }, [])
-
-  // Determinar si el nombre escrito coincide con un establecimiento existente
-  const esExistente = useMemo(() => {
-    if (!form.establecimiento.trim()) return false
-    return establecimientos.some(e =>
-      e.nombre.toLowerCase() === form.establecimiento.trim().toLowerCase()
-    )
-  }, [form.establecimiento, establecimientos])
-
-  const esNuevo = form.establecimiento.trim().length > 0 && !esExistente
 
   const resumen = useMemo(() => {
     let total = 0
@@ -127,53 +109,42 @@ export default function RegistroAdmin() {
       return
     }
 
-    // Solo validar estructura de cursos si es establecimiento nuevo
-    if (esNuevo) {
-      const alguno = ITEMS_ESTRUCTURA.some(item => estructura[item.key].activo)
-      if (!alguno) {
-        setMsg({ type: 'error', text: 'Debes seleccionar al menos un nivel educativo' })
-        return
-      }
+    const alguno = ITEMS_ESTRUCTURA.some(item => estructura[item.key].activo)
+    if (!alguno) {
+      setMsg({ type: 'error', text: 'Debes seleccionar al menos un nivel educativo' })
+      return
     }
 
-    // Build estructura_cursos payload (solo para nuevos)
+    // Build estructura_cursos payload
     const estructura_cursos = []
-    if (esNuevo) {
-      for (const item of ITEMS_ESTRUCTURA) {
-        const conf = estructura[item.key]
-        if (!conf.activo) continue
-        for (const grado of item.grados) {
-          estructura_cursos.push({ nivel: item.nivel, grado, secciones: conf.secciones })
-        }
+    for (const item of ITEMS_ESTRUCTURA) {
+      const conf = estructura[item.key]
+      if (!conf.activo) continue
+      for (const grado of item.grados) {
+        estructura_cursos.push({ nivel: item.nivel, grado, secciones: conf.secciones })
       }
     }
 
     setLoading(true)
     try {
-      const body = {
-        rut: form.rut,
-        nombres: form.nombres,
-        apellidos: form.apellidos,
-        email: form.correo,
-        telefono: form.telefono,
-        establecimiento: form.establecimiento,
-        codigo: codigo.replace(/[\s\-]/g, '')
-      }
-
-      // Agregar datos de establecimiento nuevo
-      if (esNuevo) {
-        body.modalidad_academica = modalidad
-        body.estructura_cursos = estructura_cursos
-        body.direccion_establecimiento = datosEst.direccion
-        body.comuna_establecimiento = datosEst.comuna
-        body.region_establecimiento = datosEst.region
-        body.telefono_establecimiento = datosEst.telefono
-        body.email_establecimiento = datosEst.email
-      }
-
       const res = await api('/registro/admin', {
         method: 'POST',
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          rut: form.rut,
+          nombres: form.nombres,
+          apellidos: form.apellidos,
+          email: form.correo,
+          telefono: form.telefono,
+          establecimiento: form.establecimiento,
+          codigo: codigo.replace(/[\s\-]/g, ''),
+          modalidad_academica: modalidad,
+          estructura_cursos,
+          direccion_establecimiento: datosEst.direccion,
+          comuna_establecimiento: datosEst.comuna,
+          region_establecimiento: datosEst.region,
+          telefono_establecimiento: datosEst.telefono,
+          email_establecimiento: datosEst.email
+        })
       })
       if (res.error) throw new Error(res.error)
       setMsg({ type: 'success', text: res.message || 'Pre-registro confirmado con éxito' })
@@ -227,118 +198,97 @@ export default function RegistroAdmin() {
             </div>
             <div className="form-group">
               <label>Establecimiento *</label>
-              <input
-                type="text"
-                name="establecimiento"
-                value={form.establecimiento}
-                onChange={handleChange}
-                placeholder="Nombre del establecimiento"
-                list="est-list"
-              />
-              <datalist id="est-list">
-                {establecimientos.map(e => (
-                  <option key={e.id} value={e.nombre} />
-                ))}
-              </datalist>
-              {form.establecimiento.trim() && (
-                <span className={`est-indicator ${esExistente ? 'existing' : 'new'}`}>
-                  {esExistente ? 'Existente' : 'Nuevo'}
+              <input type="text" name="establecimiento" value={form.establecimiento} onChange={handleChange} placeholder="Nombre del establecimiento" />
+            </div>
+          </div>
+
+          <div className="form-row-2" style={{ marginBottom: 0 }}>
+            <div className="form-group">
+              <label>Dirección</label>
+              <input type="text" name="direccion" value={datosEst.direccion} onChange={handleEstChange} placeholder="Av. Principal 123" />
+            </div>
+            <div className="form-group">
+              <label>Comuna</label>
+              <input type="text" name="comuna" value={datosEst.comuna} onChange={handleEstChange} placeholder="Santiago" />
+            </div>
+          </div>
+          <div className="form-row-3">
+            <div className="form-group">
+              <label>Región</label>
+              <input type="text" name="region" value={datosEst.region} onChange={handleEstChange} placeholder="Metropolitana" />
+            </div>
+            <div className="form-group">
+              <label>Teléfono establecimiento</label>
+              <input type="tel" name="telefono" value={datosEst.telefono} onChange={handleEstChange} placeholder="+56 2 1234 5678" />
+            </div>
+            <div className="form-group">
+              <label>Email establecimiento</label>
+              <input type="email" name="email" value={datosEst.email} onChange={handleEstChange} placeholder="contacto@colegio.cl" />
+            </div>
+          </div>
+
+          <div className="estructura-section">
+            <label className="estructura-title">Configuración Académica</label>
+
+            <div className="modalidad-row">
+              <span className="modalidad-label">Modalidad:</span>
+              <label className="modalidad-option">
+                <input type="radio" name="modalidad" value="trimestral" checked={modalidad === 'trimestral'} onChange={() => setModalidad('trimestral')} />
+                <span>Trimestral</span>
+                <span className="modalidad-detalle">(3 periodos)</span>
+              </label>
+              <label className="modalidad-option">
+                <input type="radio" name="modalidad" value="semestral" checked={modalidad === 'semestral'} onChange={() => setModalidad('semestral')} />
+                <span>Semestral</span>
+                <span className="modalidad-detalle">(2 periodos)</span>
+              </label>
+            </div>
+
+            <label className="estructura-title" style={{ marginTop: 12 }}>Estructura de Cursos</label>
+            <div className="niveles-grid">
+              {ITEMS_ESTRUCTURA.map(item => {
+                const conf = estructura[item.key]
+                return (
+                  <div key={item.key} className="nivel-col">
+                    <label className="nivel-header">
+                      <input
+                        type="checkbox"
+                        checked={conf.activo}
+                        onChange={() => toggleItem(item.key)}
+                      />
+                      <span>{item.label}</span>
+                      {item.detalle && <span className="nivel-detalle">{item.detalle}</span>}
+                    </label>
+                    {conf.activo && (
+                      <div className="nivel-opciones">
+                        <select
+                          value={conf.secciones}
+                          onChange={e => setSecciones(item.key, e.target.value)}
+                        >
+                          <option value={1}>1 sección</option>
+                          <option value={2}>2 secciones</option>
+                          <option value={3}>3 secciones</option>
+                          <option value={4}>4 secciones</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="estructura-resumen">
+              Total: <strong>{resumen.total} cursos</strong>
+              {resumen.parts.length > 0 && (
+                <span>
+                  {' ('}
+                  {resumen.parts.map((p, i) => (
+                    <span key={i}>{i > 0 ? ' + ' : ''}{p.count} {p.label}</span>
+                  ))}
+                  {')'}
                 </span>
               )}
             </div>
           </div>
-
-          {esNuevo && (
-            <>
-              <div className="form-row-2" style={{ marginBottom: 0 }}>
-                <div className="form-group">
-                  <label>Dirección</label>
-                  <input type="text" name="direccion" value={datosEst.direccion} onChange={handleEstChange} placeholder="Av. Principal 123" />
-                </div>
-                <div className="form-group">
-                  <label>Comuna</label>
-                  <input type="text" name="comuna" value={datosEst.comuna} onChange={handleEstChange} placeholder="Santiago" />
-                </div>
-              </div>
-              <div className="form-row-3">
-                <div className="form-group">
-                  <label>Región</label>
-                  <input type="text" name="region" value={datosEst.region} onChange={handleEstChange} placeholder="Metropolitana" />
-                </div>
-                <div className="form-group">
-                  <label>Teléfono establecimiento</label>
-                  <input type="tel" name="telefono" value={datosEst.telefono} onChange={handleEstChange} placeholder="+56 2 1234 5678" />
-                </div>
-                <div className="form-group">
-                  <label>Email establecimiento</label>
-                  <input type="email" name="email" value={datosEst.email} onChange={handleEstChange} placeholder="contacto@colegio.cl" />
-                </div>
-              </div>
-
-              <div className="estructura-section">
-                <label className="estructura-title">Configuración Académica</label>
-
-                <div className="modalidad-row">
-                  <span className="modalidad-label">Modalidad:</span>
-                  <label className="modalidad-option">
-                    <input type="radio" name="modalidad" value="trimestral" checked={modalidad === 'trimestral'} onChange={() => setModalidad('trimestral')} />
-                    <span>Trimestral</span>
-                    <span className="modalidad-detalle">(3 periodos)</span>
-                  </label>
-                  <label className="modalidad-option">
-                    <input type="radio" name="modalidad" value="semestral" checked={modalidad === 'semestral'} onChange={() => setModalidad('semestral')} />
-                    <span>Semestral</span>
-                    <span className="modalidad-detalle">(2 periodos)</span>
-                  </label>
-                </div>
-
-                <label className="estructura-title" style={{ marginTop: 12 }}>Estructura de Cursos</label>
-                <div className="niveles-grid">
-                  {ITEMS_ESTRUCTURA.map(item => {
-                    const conf = estructura[item.key]
-                    return (
-                      <div key={item.key} className="nivel-col">
-                        <label className="nivel-header">
-                          <input
-                            type="checkbox"
-                            checked={conf.activo}
-                            onChange={() => toggleItem(item.key)}
-                          />
-                          <span>{item.label}</span>
-                          {item.detalle && <span className="nivel-detalle">{item.detalle}</span>}
-                        </label>
-                        {conf.activo && (
-                          <div className="nivel-opciones">
-                            <select
-                              value={conf.secciones}
-                              onChange={e => setSecciones(item.key, e.target.value)}
-                            >
-                              <option value={1}>1 sección</option>
-                              <option value={2}>2 secciones</option>
-                              <option value={3}>3 secciones</option>
-                              <option value={4}>4 secciones</option>
-                            </select>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className="estructura-resumen">
-                  Total: <strong>{resumen.total} cursos</strong>
-                  {resumen.parts.length > 0 && (
-                    <span>
-                      {' ('}
-                      {resumen.parts.map((p, i) => (
-                        <span key={i}>{i > 0 ? ' + ' : ''}{p.count} {p.label}</span>
-                      ))}
-                      {')'}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
 
           <div className="codigo-row">
             <button type="button" className="btn btn-blue" onClick={handleGenerar} disabled={!!codigo}>
