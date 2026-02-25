@@ -163,10 +163,6 @@ export default function RegistroAdmin() {
 
   return (
     <div className="tech-page">
-      <div className="page-header">
-        <h1>Administrador</h1>
-      </div>
-
       <div className="tab-bar">
         <button className={`tab-btn ${tab === 'registro' ? 'active' : ''}`} onClick={() => setTab('registro')}>Registro</button>
         <button className={`tab-btn ${tab === 'cambiar' ? 'active' : ''}`} onClick={() => setTab('cambiar')}>Cambiar administrador</button>
