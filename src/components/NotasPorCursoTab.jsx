@@ -179,7 +179,7 @@ function NotasPorCursoTab({ modalidad }) {
 
   // Obtener el número máximo de notas por trimestre (para columnas)
   const maxNotasPorTrimestre = useMemo(() => {
-    if (!alumnosConNotas.length) return 8;
+    if (!alumnosConNotas.length) return periodos.notasPorPeriodo;
     let max = 0;
     alumnosConNotas.forEach(alumno => {
       trimestresActivos.forEach(trim => {
