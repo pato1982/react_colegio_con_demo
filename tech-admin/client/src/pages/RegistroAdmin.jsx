@@ -191,7 +191,7 @@ export default function RegistroAdmin() {
             </div>
           </div>
 
-          <div className="form-row-2">
+          <div className="form-row-3">
             <div className="form-group">
               <label>Correo electrónico *</label>
               <input type="email" name="correo" value={form.correo} onChange={handleChange} placeholder="ejemplo@correo.cl" />
@@ -200,19 +200,17 @@ export default function RegistroAdmin() {
               <label>Establecimiento *</label>
               <input type="text" name="establecimiento" value={form.establecimiento} onChange={handleChange} placeholder="Nombre del establecimiento" />
             </div>
-          </div>
-
-          <div className="form-row-2" style={{ marginBottom: 0 }}>
             <div className="form-group">
               <label>Dirección</label>
               <input type="text" name="direccion" value={datosEst.direccion} onChange={handleEstChange} placeholder="Av. Principal 123" />
             </div>
+          </div>
+
+          <div className="form-row-4">
             <div className="form-group">
               <label>Comuna</label>
               <input type="text" name="comuna" value={datosEst.comuna} onChange={handleEstChange} placeholder="Santiago" />
             </div>
-          </div>
-          <div className="form-row-3">
             <div className="form-group">
               <label>Región</label>
               <input type="text" name="region" value={datosEst.region} onChange={handleEstChange} placeholder="Metropolitana" />
