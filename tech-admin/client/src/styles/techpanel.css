@@ -216,7 +216,7 @@ a { color: var(--blue); text-decoration: none; }
 
 /* Forms */
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .form-group label {
@@ -271,7 +271,7 @@ a { color: var(--blue); text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 
 .page-header h1 {
@@ -442,7 +442,7 @@ a { color: var(--blue); text-decoration: none; }
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 24px;
+  padding: 20px 24px;
 }
 
 .registro-msg {
@@ -562,8 +562,8 @@ a { color: var(--blue); text-decoration: none; }
 
 /* Estructura de Cursos */
 .estructura-section {
-  margin-bottom: 16px;
-  padding: 16px;
+  margin-bottom: 12px;
+  padding: 14px 16px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 8px;
