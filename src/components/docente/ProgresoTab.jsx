@@ -14,8 +14,10 @@ import {
 } from './shared';
 import { ordenarCursos } from './shared/utils';
 import { apiFetch } from '../../utils/api';
+import { getPeriodos } from '../../utils/periodos';
 
-function ProgresoTab({ docenteId, establecimientoId }) {
+function ProgresoTab({ docenteId, establecimientoId, modalidad }) {
+  const periodos = useMemo(() => getPeriodos(modalidad), [modalidad]);
   const [cursos, setCursos] = useState([]);
   const [asignaturas, setAsignaturas] = useState([]);
   const [cursoSeleccionado, setCursoSeleccionado] = useState('');
@@ -39,10 +41,8 @@ function ProgresoTab({ docenteId, establecimientoId }) {
   const { isMobile } = useResponsive();
 
   const trimestres = [
-    { id: '', nombre: 'Todos los trimestres' },
-    { id: '1', nombre: '1er Trimestre' },
-    { id: '2', nombre: '2do Trimestre' },
-    { id: '3', nombre: '3er Trimestre' }
+    { id: '', nombre: `Todos los ${periodos.nombreGenerico.toLowerCase()}s` },
+    ...periodos.labelsFiltro.map(p => ({ id: String(p.id), nombre: p.nombre }))
   ];
 
   useEffect(() => {
@@ -192,13 +192,13 @@ function ProgresoTab({ docenteId, establecimientoId }) {
       return count > 0 ? (suma / count) : null;
     };
 
-    [1, 2, 3].forEach(t => {
+    periodos.ids.forEach((t, idx) => {
       if (filtroTrimestreGrafico && filtroTrimestreGrafico !== t.toString()) return;
 
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < periodos.notasPorPeriodo; i++) {
         const prom = calcPromedioColumna(`notas_t${t}`, i);
         if (prom !== null) {
-          labels.push(`T${t} N${i + 1}`);
+          labels.push(`${periodos.labelsCortos[idx]} N${i + 1}`);
           dataPoints.push(prom);
           pointColors.push(chartColors.primary);
           pointRadii.push(4);
@@ -206,10 +206,9 @@ function ProgresoTab({ docenteId, establecimientoId }) {
       }
       const promFinal = calcPromedioFinalTrimestre(t);
       if (promFinal !== null) {
-        labels.push(`T${t} Final`);
+        labels.push(`${periodos.labelsCortos[idx]} Final`);
         dataPoints.push(promFinal);
-        // DESTACAR PUNTO FINAL (Color diferente: Rojo/Naranja)
-        pointColors.push('#f97316'); // Naranja brillante
+        pointColors.push('#f97316');
         pointRadii.push(6);
       }
     });
@@ -230,7 +229,7 @@ function ProgresoTab({ docenteId, establecimientoId }) {
       }]
     };
 
-  }, [notasDetalladas, filtroTrimestreGrafico]);
+  }, [notasDetalladas, filtroTrimestreGrafico, periodos]);
 
   // Opciones grafico evolucion
   const evolucionChartOptions = useMemo(() => ({
@@ -264,13 +263,13 @@ function ProgresoTab({ docenteId, establecimientoId }) {
             const currentTrim = label.split(' ')[0];
 
             // LOGICA CAMBIADA: Mostrar etiqueta al FINAL del bloque
-            if (index === values.length - 1) return currentTrim.replace('T', 'Trimestre ');
+            if (index === values.length - 1) return currentTrim;
 
             const nextLabel = this.getLabelForValue(values[index + 1].value);
             const nextTrim = nextLabel.split(' ')[0];
 
             if (currentTrim !== nextTrim) {
-              return currentTrim.replace('T', 'Trimestre ');
+              return currentTrim;
             }
             return '';
           }
@@ -375,7 +374,7 @@ function ProgresoTab({ docenteId, establecimientoId }) {
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                   <div style={{ flex: 1 }}>
                     <SelectNativo
-                      label="Trimestre"
+                      label={periodos.nombreGenerico}
                       value={trimestreSeleccionado}
                       onChange={handleTrimestreChange}
                       options={trimestres}
@@ -489,9 +488,9 @@ function ProgresoTab({ docenteId, establecimientoId }) {
                   }}
                 >
                   <option value="">Todos</option>
-                  <option value="1">Trimestre 1</option>
-                  <option value="2">Trimestre 2</option>
-                  <option value="3">Trimestre 3</option>
+                  {periodos.ids.map((t, i) => (
+                    <option key={t} value={String(t)}>{periodos.labels[i]}</option>
+                  ))}
                 </select>
               </div>
               <div className="card-body docente-chart-container">

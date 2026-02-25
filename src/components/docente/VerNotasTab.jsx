@@ -3,6 +3,7 @@ import { useResponsive, useDropdown } from '../../hooks';
 import { SelectNativo, SelectMovil, AutocompleteAlumno } from './shared';
 import { ordenarCursos } from './shared/utils';
 import { apiFetch } from '../../utils/api';
+import { getPeriodos } from '../../utils/periodos';
 
 // Simple Error Boundary
 class ComponentErrorBoundary extends React.Component {
@@ -38,10 +39,10 @@ const getNotaClass = (nota) => {
   return Number(nota) >= 4.0 ? 'nota-aprobada' : 'nota-reprobada';
 };
 
-// Renderizar celdas de notas para un trimestre (8 notas máximo)
-const renderNotasCeldas = (notas) => {
+// Renderizar celdas de notas para un periodo (dinamico segun notasPorPeriodo)
+const renderNotasCeldas = (notas, notasPorPeriodo = 8) => {
   const celdas = [];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < notasPorPeriodo; i++) {
     const notaObj = notas[i];
     let valor = '-';
     let clase = '';
@@ -51,7 +52,6 @@ const renderNotasCeldas = (notas) => {
         valor = 'P';
         clase = 'nota-pendiente';
       } else if (notaObj.nota !== null) {
-        // CORRECCION CRITICA: Convertir a Number antes de toFixed
         valor = Number(notaObj.nota).toFixed(1);
         clase = getNotaClass(notaObj.nota);
       }
@@ -66,17 +66,18 @@ const renderNotasCeldas = (notas) => {
   return celdas;
 };
 
-// Encabezados de notas para un trimestre
-const NotasHeaders = () => (
+// Encabezados de notas para un periodo (dinamico)
+const NotasHeaders = ({ notasPorPeriodo = 8 }) => (
   <>
-    {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
-      <th key={n} className="th-sub">N{n}</th>
+    {Array.from({ length: notasPorPeriodo }, (_, i) => (
+      <th key={i + 1} className="th-sub">N{i + 1}</th>
     ))}
     <th className="th-sub th-prom">Prom</th>
   </>
 );
 
-function VerNotasTabInternal({ docenteId, establecimientoId }) {
+function VerNotasTabInternal({ docenteId, establecimientoId, modalidad }) {
+  const periodos = useMemo(() => getPeriodos(modalidad), [modalidad]);
   // Estados para datos de API
   const [cursos, setCursos] = useState([]);
   const [asignaturas, setAsignaturas] = useState([]);
@@ -263,14 +264,16 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
         return notasValidas.reduce((a, b) => a + b, 0) / notasValidas.length;
       };
 
-      const promedioT1 = calcularPromedio(alumno.notas_t1);
-      const promedioT2 = calcularPromedio(alumno.notas_t2);
-      const promedioT3 = calcularPromedio(alumno.notas_t3);
+      // Calcular promedios por periodo (dinamico)
+      const promediosPeriodo = {};
+      periodos.ids.forEach(t => {
+        promediosPeriodo[t] = calcularPromedio(alumno[`notas_t${t}`] || []);
+      });
 
       // Calcular promedio final
-      const promediosTrimestre = [promedioT1, promedioT2, promedioT3].filter(p => p !== null);
-      const promedioFinal = promediosTrimestre.length > 0
-        ? promediosTrimestre.reduce((a, b) => a + b, 0) / promediosTrimestre.length
+      const promediosValidos = Object.values(promediosPeriodo).filter(p => p !== null);
+      const promedioFinal = promediosValidos.length > 0
+        ? promediosValidos.reduce((a, b) => a + b, 0) / promediosValidos.length
         : null;
 
       // Estado de aprobación
@@ -280,9 +283,7 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
 
       return {
         ...alumno,
-        promedioT1,
-        promedioT2,
-        promedioT3,
+        promediosPeriodo,
         promedioFinal,
         estado
       };
@@ -489,9 +490,9 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
               <colgroup>
                 <col style={{ width: '28px' }} />
                 <col style={{ width: '110px' }} />
-                {[1,2,3].map(t => (
+                {periodos.ids.map(t => (
                   <React.Fragment key={t}>
-                    {[1,2,3,4,5,6,7,8].map(n => <col key={n} style={{ width: '28px' }} />)}
+                    {Array.from({ length: periodos.notasPorPeriodo }, (_, n) => <col key={n} style={{ width: '28px' }} />)}
                     <col style={{ width: '34px' }} />
                   </React.Fragment>
                 ))}
@@ -502,16 +503,16 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
                 <tr>
                   <th rowSpan="2" className="vn-th-fijo">N</th>
                   <th rowSpan="2" className="vn-th-fijo vn-th-alumno">Alumno</th>
-                  <th colSpan="9" className="vn-th-trim">Trimestre 1</th>
-                  <th colSpan="9" className="vn-th-trim">Trimestre 2</th>
-                  <th colSpan="9" className="vn-th-trim">Trimestre 3</th>
+                  {periodos.ids.map((t, i) => (
+                    <th key={t} colSpan={periodos.notasPorPeriodo + 1} className="vn-th-trim">{periodos.labels[i]}</th>
+                  ))}
                   <th rowSpan="2" className="vn-th-fijo vn-th-final">PROM</th>
                   <th rowSpan="2" className="vn-th-fijo">APR</th>
                 </tr>
                 <tr>
-                  {[1,2,3].map(t => (
+                  {periodos.ids.map(t => (
                     <React.Fragment key={t}>
-                      {[1,2,3,4,5,6,7,8].map(n => <th key={n} className="vn-th-nota">N{n}</th>)}
+                      {Array.from({ length: periodos.notasPorPeriodo }, (_, n) => <th key={n} className="vn-th-nota">N{n + 1}</th>)}
                       <th className="vn-th-nota vn-th-prom">Prom</th>
                     </React.Fragment>
                   ))}
@@ -519,18 +520,18 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
               </thead>
               <tbody>
                 {consultando ? (
-                  <tr><td colSpan="31" className="text-center text-muted">Consultando...</td></tr>
+                  <tr><td colSpan={2 + periodos.cantidad * (periodos.notasPorPeriodo + 1) + 2} className="text-center text-muted">Consultando...</td></tr>
                 ) : datosTabla.length > 0 ? (
                   datosTabla.map((row, index) => (
                     <tr key={row.alumno_id}>
                       <td className="vn-td-num">{index + 1}</td>
                       <td className="vn-td-alumno">{formatearNombreAlumno(row.alumno_nombres, row.alumno_apellidos)}</td>
-                      {renderNotasCeldas(row.notas_t1)}
-                      <td className={`vn-td-prom ${getNotaClass(row.promedioT1)}`}>{formatearNota(row.promedioT1)}</td>
-                      {renderNotasCeldas(row.notas_t2)}
-                      <td className={`vn-td-prom ${getNotaClass(row.promedioT2)}`}>{formatearNota(row.promedioT2)}</td>
-                      {renderNotasCeldas(row.notas_t3)}
-                      <td className={`vn-td-prom ${getNotaClass(row.promedioT3)}`}>{formatearNota(row.promedioT3)}</td>
+                      {periodos.ids.map(t => (
+                        <React.Fragment key={t}>
+                          {renderNotasCeldas(row[`notas_t${t}`] || [], periodos.notasPorPeriodo)}
+                          <td className={`vn-td-prom ${getNotaClass(row.promediosPeriodo[t])}`}>{formatearNota(row.promediosPeriodo[t])}</td>
+                        </React.Fragment>
+                      ))}
                       <td className={`vn-td-final ${getNotaClass(row.promedioFinal)}`}>{formatearNota(row.promedioFinal)}</td>
                       <td className={`vn-td-estado ${row.estado === 'Aprobado' ? 'estado-aprobado' : row.estado === 'Reprobado' ? 'estado-reprobado' : ''}`}>
                         {row.estado === 'Aprobado' ? 'APR' : row.estado === 'Reprobado' ? 'REP' : '-'}
@@ -539,7 +540,7 @@ function VerNotasTabInternal({ docenteId, establecimientoId }) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="31" className="text-center text-muted">
+                    <td colSpan={2 + periodos.cantidad * (periodos.notasPorPeriodo + 1) + 2} className="text-center text-muted">
                       {consultado ? 'No hay datos para mostrar' : 'Seleccione curso y asignatura, luego presione Consultar'}
                     </td>
                   </tr>

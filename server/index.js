@@ -2525,9 +2525,18 @@ app.post('/api/asistencia/registrar', async (req, res) => {
         // Extraer el año directamente del string de fecha (ej: "2026-01-15" -> 2026)
         const anioAcademico = parseInt(fecha.split('-')[0]);
 
-        // Calcular trimestre (lógica chilena estándar pero robustecida)
+        // Consultar modalidad del establecimiento para calcular periodo
+        const [estModalidad] = await connection.query(
+            'SELECT modalidad_academica FROM tb_establecimientos WHERE id = ?',
+            [establecimiento_id]
+        );
+        const modalidad = estModalidad.length > 0 ? estModalidad[0].modalidad_academica : 'trimestral';
+
+        // Calcular periodo segun modalidad (trimestral o semestral)
         const mes = new Date(fecha).getUTCMonth() + 1; // Usar UTC para parsear "YYYY-MM-DD" correctamente
-        const trimestre = mes <= 5 ? 1 : mes <= 8 ? 2 : 3;
+        const trimestre = modalidad === 'semestral'
+            ? (mes <= 7 ? 1 : 2)
+            : (mes <= 5 ? 1 : mes <= 8 ? 2 : 3);
 
         // Obtener nombres para el log
         const [userRow] = await connection.query(`SELECT u.tipo_usuario, COALESCE(d.nombres, a.nombres) as nombres, COALESCE(d.apellidos, a.apellidos) as apellidos FROM tb_usuarios u LEFT JOIN tb_docentes d ON u.id = d.usuario_id LEFT JOIN tb_administradores a ON u.id = a.usuario_id WHERE u.id = ?`, [registrado_por]);
@@ -2970,31 +2979,46 @@ app.get('/api/notas/por-curso', async (req, res) => {
 
         const [notas] = await pool.query(notasQuery, params);
 
-        // Organizar notas por alumno y trimestre
+        // Consultar modalidad del establecimiento
+        const [estMod] = await pool.query(
+            'SELECT modalidad_academica FROM tb_establecimientos WHERE id = ?',
+            [establecimiento_id]
+        );
+        const modalidadEst = estMod.length > 0 ? estMod[0].modalidad_academica : 'trimestral';
+        const cantidadPeriodos = modalidadEst === 'semestral' ? 2 : 3;
+        const periodosIds = modalidadEst === 'semestral' ? [1, 2] : [1, 2, 3];
+
+        // Organizar notas por alumno y periodo
         const notasPorAlumno = {};
         notas.forEach(nota => {
             if (!notasPorAlumno[nota.alumno_id]) {
-                notasPorAlumno[nota.alumno_id] = { 1: [], 2: [], 3: [] };
+                const init = {};
+                periodosIds.forEach(p => { init[p] = []; });
+                notasPorAlumno[nota.alumno_id] = init;
             }
-            notasPorAlumno[nota.alumno_id][nota.trimestre].push({
-                id: nota.id,
-                numero: nota.numero_evaluacion,
-                nota: nota.nota,
-                descripcion: nota.descripcion,
-                tipo: nota.tipo_evaluacion_abrev || nota.tipo_evaluacion
-            });
+            if (notasPorAlumno[nota.alumno_id][nota.trimestre]) {
+                notasPorAlumno[nota.alumno_id][nota.trimestre].push({
+                    id: nota.id,
+                    numero: nota.numero_evaluacion,
+                    nota: nota.nota,
+                    descripcion: nota.descripcion,
+                    tipo: nota.tipo_evaluacion_abrev || nota.tipo_evaluacion
+                });
+            }
         });
 
         // Combinar alumnos con sus notas
+        const defaultNotas = {};
+        periodosIds.forEach(p => { defaultNotas[p] = []; });
         const resultado = alumnos.map(alumno => ({
             ...alumno,
-            notas: notasPorAlumno[alumno.id] || { 1: [], 2: [], 3: [] }
+            notas: notasPorAlumno[alumno.id] || { ...defaultNotas }
         }));
 
         res.json({
             success: true,
             data: resultado,
-            trimestres: trimestre === 'todas' ? [1, 2, 3] : [parseInt(trimestre)]
+            trimestres: trimestre === 'todas' ? periodosIds : [parseInt(trimestre)]
         });
     } catch (error) {
         console.error('Error al obtener notas del curso:', error);

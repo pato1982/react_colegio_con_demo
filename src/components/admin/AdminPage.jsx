@@ -55,19 +55,19 @@ function AdminPage({ usuario, onCerrarSesion }) {
             { id: 'matriculas', Component: MatriculasTab },
             { id: 'docentes', Component: DocentesTab },
             { id: 'asignacion-cursos', Component: AsignacionesTab },
-            { id: 'notas-por-curso', Component: NotasPorCursoTab },
+            { id: 'notas-por-curso', Component: NotasPorCursoTab, props: { modalidad: usuario?.modalidad_academica } },
             { id: 'asistencia', Component: AsistenciaTab },
             { id: 'comunicados', Component: ComunicadosTab },
             { id: 'estadisticas', Component: EstadisticasTab }
         ];
 
-        return tabsConfig.map(({ id, Component }) => {
+        return tabsConfig.map(({ id, Component, props }) => {
             if (!visitedTabs.has(id) && tabActual !== id) return null;
             const isActive = tabActual === id;
             return (
                 <div key={id} style={{ display: isActive ? 'block' : 'none' }} role="tabpanel">
                     <ErrorBoundary FallbackComponent={SectionErrorFallback}>
-                        <Component />
+                        <Component {...(props || {})} />
                     </ErrorBoundary>
                 </div>
             );

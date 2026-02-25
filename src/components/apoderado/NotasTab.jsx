@@ -1,7 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { apiFetch } from '../../utils/api';
+import { getPeriodos } from '../../utils/periodos';
 
-function NotasTab({ pupilo, notas: notasProp }) {
+function NotasTab({ pupilo, notas: notasProp, modalidad }) {
+  const periodos = useMemo(() => getPeriodos(modalidad), [modalidad]);
   const [notas, setNotas] = useState(notasProp || []);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
@@ -63,34 +65,31 @@ function NotasTab({ pupilo, notas: notasProp }) {
     const organizadas = {};
 
     asignaturas.forEach(asig => {
-      organizadas[asig] = {
-        1: Array(8).fill(undefined), // Trimestre 1 - 8 columnas
-        2: Array(8).fill(undefined), // Trimestre 2 - 8 columnas
-        3: Array(8).fill(undefined)  // Trimestre 3 - 8 columnas
-      };
+      organizadas[asig] = {};
+      periodos.ids.forEach(t => {
+        organizadas[asig][t] = Array(periodos.notasPorPeriodo).fill(undefined);
+      });
     });
 
     notas.forEach(nota => {
       if (organizadas[nota.asignatura] && organizadas[nota.asignatura][nota.trimestre]) {
-        // Usar numero_evaluacion - 1 como indice (0-based)
         const idx = (nota.numero_evaluacion || 1) - 1;
-        if (idx >= 0 && idx < 8) {
+        if (idx >= 0 && idx < periodos.notasPorPeriodo) {
           organizadas[nota.asignatura][nota.trimestre][idx] = nota;
         }
       }
     });
 
     return organizadas;
-  }, [notas, asignaturas]);
+  }, [notas, asignaturas, periodos]);
 
   // Calcular promedios por asignatura y trimestre
   const promediosPorAsignaturaTrimestre = useMemo(() => {
     const promedios = {};
     asignaturas.forEach(asig => {
       promedios[asig] = {};
-      [1, 2, 3].forEach(trim => {
-        // Filtrar: debe existir (no undefined), tener nota y no ser pendiente
-        const notasTrim = notasOrganizadas[asig][trim].filter(n => n && n.nota !== null && !n.es_pendiente);
+      periodos.ids.forEach(trim => {
+        const notasTrim = (notasOrganizadas[asig][trim] || []).filter(n => n && n.nota !== null && !n.es_pendiente);
         if (notasTrim.length > 0) {
           const suma = notasTrim.reduce((acc, n) => acc + parseFloat(n.nota), 0);
           promedios[asig][trim] = suma / notasTrim.length;
@@ -100,13 +99,13 @@ function NotasTab({ pupilo, notas: notasProp }) {
       });
     });
     return promedios;
-  }, [asignaturas, notasOrganizadas]);
+  }, [asignaturas, notasOrganizadas, periodos]);
 
-  // Calcular promedio final (promedio de los tres trimestres)
+  // Calcular promedio final (promedio de todos los periodos)
   const promediosPorAsignatura = useMemo(() => {
     const promedios = {};
     asignaturas.forEach(asig => {
-      const promediosTrim = [1, 2, 3]
+      const promediosTrim = periodos.ids
         .map(trim => promediosPorAsignaturaTrimestre[asig][trim])
         .filter(p => p !== null);
       if (promediosTrim.length > 0) {
@@ -117,7 +116,7 @@ function NotasTab({ pupilo, notas: notasProp }) {
       }
     });
     return promedios;
-  }, [asignaturas, promediosPorAsignaturaTrimestre]);
+  }, [asignaturas, promediosPorAsignaturaTrimestre, periodos]);
 
   // Calcular promedio general
   const promedioGeneral = useMemo(() => {
@@ -155,8 +154,8 @@ function NotasTab({ pupilo, notas: notasProp }) {
     setNotaSeleccionada(null);
   };
 
-  // Generar array de 8 columnas por trimestre
-  const columnasNotas = Array.from({ length: 8 }, (_, i) => i + 1);
+  // Generar array de columnas por periodo (dinamico)
+  const columnasNotas = Array.from({ length: periodos.notasPorPeriodo }, (_, i) => i + 1);
 
   // Si no hay pupilo seleccionado
   if (!pupilo) {
@@ -257,133 +256,65 @@ function NotasTab({ pupilo, notas: notasProp }) {
               <thead>
                 <tr className="trimestre-header">
                   <th rowSpan="2" className="asignatura-header">Asignatura</th>
-                  <th colSpan="9" className="trimestre-col trimestre-1">1er Trimestre</th>
-                  <th colSpan="9" className="trimestre-col trimestre-2">2do Trimestre</th>
-                  <th colSpan="9" className="trimestre-col trimestre-3">3er Trimestre</th>
+                  {periodos.ids.map((t, i) => (
+                    <th key={t} colSpan={periodos.notasPorPeriodo + 1} className={`trimestre-col trimestre-${t}`}>
+                      {periodos.labelsFiltro[i].nombre}
+                    </th>
+                  ))}
                   <th rowSpan="2" className="promedio-header promedio-final-header">Prom. Final</th>
                 </tr>
                 <tr className="notas-header">
-                  {/* Trimestre 1 */}
-                  {columnasNotas.map(num => (
-                    <th key={`t1-${num}`} className="nota-col trimestre-1">N{num}</th>
+                  {periodos.ids.map((t, i) => (
+                    <React.Fragment key={t}>
+                      {columnasNotas.map(num => (
+                        <th key={`t${t}-${num}`} className={`nota-col trimestre-${t}`}>N{num}</th>
+                      ))}
+                      <th className={`nota-col promedio-trim-header trimestre-${t}`}>{periodos.promedioPrefix}{t}</th>
+                    </React.Fragment>
                   ))}
-                  <th className="nota-col promedio-trim-header trimestre-1">PT1</th>
-                  {/* Trimestre 2 */}
-                  {columnasNotas.map(num => (
-                    <th key={`t2-${num}`} className="nota-col trimestre-2">N{num}</th>
-                  ))}
-                  <th className="nota-col promedio-trim-header trimestre-2">PT2</th>
-                  {/* Trimestre 3 */}
-                  {columnasNotas.map(num => (
-                    <th key={`t3-${num}`} className="nota-col trimestre-3">N{num}</th>
-                  ))}
-                  <th className="nota-col promedio-trim-header trimestre-3">PT3</th>
                 </tr>
               </thead>
               <tbody>
-                {asignaturas.map(asig => {
-                  const promT1 = promediosPorAsignaturaTrimestre[asig][1];
-                  const promT2 = promediosPorAsignaturaTrimestre[asig][2];
-                  const promT3 = promediosPorAsignaturaTrimestre[asig][3];
-                  return (
+                {asignaturas.map(asig => (
                     <tr key={asig}>
                       <td className="asignatura-nombre">{asig}</td>
-                      {/* Notas Trimestre 1 */}
-                      {columnasNotas.map((_, idx) => {
-                        const notaObj = notasOrganizadas[asig][1][idx];
+                      {periodos.ids.map(t => {
+                        const promT = promediosPorAsignaturaTrimestre[asig][t];
                         return (
-                          <td key={`t1-${idx}`} className="nota-celda trimestre-1">
-                            {notaObj !== undefined ? (
-                              notaObj.es_pendiente ? (
-                                <span className="nota-valor nota-pendiente">P</span>
-                              ) : (
-                                <span
-                                  className={`nota-valor nota-clickable ${getNotaClass(parseFloat(notaObj.nota))}`}
-                                  onClick={(e) => handleNotaClick(notaObj, e)}
-                                >
-                                  {parseFloat(notaObj.nota).toFixed(1)}
+                          <React.Fragment key={`periodo-${t}`}>
+                            {columnasNotas.map((_, idx) => {
+                              const notaObj = (notasOrganizadas[asig][t] || [])[idx];
+                              return (
+                                <td key={`t${t}-${idx}`} className={`nota-celda trimestre-${t}`}>
+                                  {notaObj !== undefined ? (
+                                    notaObj.es_pendiente ? (
+                                      <span className="nota-valor nota-pendiente">P</span>
+                                    ) : (
+                                      <span
+                                        className={`nota-valor nota-clickable ${getNotaClass(parseFloat(notaObj.nota))}`}
+                                        onClick={(e) => handleNotaClick(notaObj, e)}
+                                      >
+                                        {parseFloat(notaObj.nota).toFixed(1)}
+                                      </span>
+                                    )
+                                  ) : (
+                                    <span className="nota-vacia">-</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className={`nota-celda promedio-trim-celda trimestre-${t}`}>
+                              {promT !== null ? (
+                                <span className={`nota-valor promedio-trim ${getNotaClass(promT)}`}>
+                                  {promT.toFixed(1)}
                                 </span>
-                              )
-                            ) : (
-                              <span className="nota-vacia">-</span>
-                            )}
-                          </td>
+                              ) : (
+                                <span className="nota-vacia">-</span>
+                              )}
+                            </td>
+                          </React.Fragment>
                         );
                       })}
-                      {/* Promedio Trimestre 1 */}
-                      <td className="nota-celda promedio-trim-celda trimestre-1">
-                        {promT1 !== null ? (
-                          <span className={`nota-valor promedio-trim ${getNotaClass(promT1)}`}>
-                            {promT1.toFixed(1)}
-                          </span>
-                        ) : (
-                          <span className="nota-vacia">-</span>
-                        )}
-                      </td>
-                      {/* Notas Trimestre 2 */}
-                      {columnasNotas.map((_, idx) => {
-                        const notaObj = notasOrganizadas[asig][2][idx];
-                        return (
-                          <td key={`t2-${idx}`} className="nota-celda trimestre-2">
-                            {notaObj !== undefined ? (
-                              notaObj.es_pendiente ? (
-                                <span className="nota-valor nota-pendiente">P</span>
-                              ) : (
-                                <span
-                                  className={`nota-valor nota-clickable ${getNotaClass(parseFloat(notaObj.nota))}`}
-                                  onClick={(e) => handleNotaClick(notaObj, e)}
-                                >
-                                  {parseFloat(notaObj.nota).toFixed(1)}
-                                </span>
-                              )
-                            ) : (
-                              <span className="nota-vacia">-</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                      {/* Promedio Trimestre 2 */}
-                      <td className="nota-celda promedio-trim-celda trimestre-2">
-                        {promT2 !== null ? (
-                          <span className={`nota-valor promedio-trim ${getNotaClass(promT2)}`}>
-                            {promT2.toFixed(1)}
-                          </span>
-                        ) : (
-                          <span className="nota-vacia">-</span>
-                        )}
-                      </td>
-                      {/* Notas Trimestre 3 */}
-                      {columnasNotas.map((_, idx) => {
-                        const notaObj = notasOrganizadas[asig][3][idx];
-                        return (
-                          <td key={`t3-${idx}`} className="nota-celda trimestre-3">
-                            {notaObj !== undefined ? (
-                              notaObj.es_pendiente ? (
-                                <span className="nota-valor nota-pendiente">P</span>
-                              ) : (
-                                <span
-                                  className={`nota-valor nota-clickable ${getNotaClass(parseFloat(notaObj.nota))}`}
-                                  onClick={(e) => handleNotaClick(notaObj, e)}
-                                >
-                                  {parseFloat(notaObj.nota).toFixed(1)}
-                                </span>
-                              )
-                            ) : (
-                              <span className="nota-vacia">-</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                      {/* Promedio Trimestre 3 */}
-                      <td className="nota-celda promedio-trim-celda trimestre-3">
-                        {promT3 !== null ? (
-                          <span className={`nota-valor promedio-trim ${getNotaClass(promT3)}`}>
-                            {promT3.toFixed(1)}
-                          </span>
-                        ) : (
-                          <span className="nota-vacia">-</span>
-                        )}
-                      </td>
                       {/* Promedio Final */}
                       <td className="promedio-celda promedio-final-celda">
                         <span className={`nota-valor promedio-final ${promediosPorAsignatura[asig] !== '-' ? getNotaClass(parseFloat(promediosPorAsignatura[asig])) : ''}`}>
@@ -391,8 +322,7 @@ function NotasTab({ pupilo, notas: notasProp }) {
                         </span>
                       </td>
                     </tr>
-                  );
-                })}
+                ))}
               </tbody>
             </table>
           </div>

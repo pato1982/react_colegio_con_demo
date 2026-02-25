@@ -184,13 +184,17 @@ function FiltrosDocente({
   dropdownAbierto,
   setDropdownAbierto,
   mostrarTrimestre = true,
-  columnas = '1fr 1fr 1fr auto'
+  columnas = '1fr 1fr 1fr auto',
+  periodos
 }) {
-  const trimestres = [
-    { id: '1', nombre: 'Primero' },
-    { id: '2', nombre: 'Segundo' },
-    { id: '3', nombre: 'Tercero' }
-  ];
+  const labelPeriodo = periodos?.nombreGenerico || 'Trimestre';
+  const trimestres = periodos
+    ? periodos.labelsFiltro.map(p => ({ id: String(p.id), nombre: p.nombre }))
+    : [
+        { id: '1', nombre: 'Primero' },
+        { id: '2', nombre: 'Segundo' },
+        { id: '3', nombre: 'Tercero' }
+      ];
 
   if (isMobile) {
     return (
@@ -223,7 +227,7 @@ function FiltrosDocente({
         <div className="form-row-movil" style={{ alignItems: 'flex-end' }}>
           {mostrarTrimestre && (
             <SelectMovil
-              label="Trimestre"
+              label={labelPeriodo}
               value={trimestreSeleccionado}
               valueName={trimestreNombre}
               onChange={onTrimestreChange}
@@ -269,11 +273,11 @@ function FiltrosDocente({
       />
       {mostrarTrimestre && (
         <SelectNativo
-          label="Trimestre"
+          label={labelPeriodo}
           value={trimestreSeleccionado}
           onChange={(e) => {
-            const nombres = { '1': 'Primero', '2': 'Segundo', '3': 'Tercero' };
-            onTrimestreChange(e.target.value, nombres[e.target.value] || '');
+            const match = trimestres.find(t => t.id === e.target.value);
+            onTrimestreChange(e.target.value, match?.nombre || '');
           }}
           options={trimestres}
           placeholder="Todos"

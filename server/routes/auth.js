@@ -168,7 +168,7 @@ router.post('/login', async (req, res) => {
 
         if (tipoDb === 'administrador') {
             const [admin] = await pool.query(`
-                SELECT a.*, e.nombre as establecimiento, ae.establecimiento_id
+                SELECT a.*, e.nombre as establecimiento, ae.establecimiento_id, e.modalidad_academica
                 FROM tb_administradores a
                 LEFT JOIN tb_administrador_establecimiento ae ON a.id = ae.administrador_id AND ae.activo = 1
                 LEFT JOIN tb_establecimientos e ON ae.establecimiento_id = e.id
@@ -181,12 +181,13 @@ router.post('/login', async (req, res) => {
                     nombres: admin[0].nombres,
                     apellidos: admin[0].apellidos,
                     establecimiento: admin[0].establecimiento,
-                    establecimiento_id: admin[0].establecimiento_id
+                    establecimiento_id: admin[0].establecimiento_id,
+                    modalidad_academica: admin[0].modalidad_academica || 'trimestral'
                 };
             }
         } else if (tipoDb === 'docente') {
             const [docente] = await pool.query(`
-                SELECT d.*, e.nombre as establecimiento, de.establecimiento_id
+                SELECT d.*, e.nombre as establecimiento, de.establecimiento_id, e.modalidad_academica
                 FROM tb_docentes d
                 LEFT JOIN tb_docente_establecimiento de ON d.id = de.docente_id AND de.activo = 1
                 LEFT JOIN tb_establecimientos e ON de.establecimiento_id = e.id
@@ -200,7 +201,8 @@ router.post('/login', async (req, res) => {
                     apellidos: docente[0].apellidos,
                     iniciales: `${docente[0].nombres?.charAt(0) || ''}${docente[0].apellidos?.charAt(0) || ''}`,
                     establecimiento: docente[0].establecimiento,
-                    establecimiento_id: docente[0].establecimiento_id
+                    establecimiento_id: docente[0].establecimiento_id,
+                    modalidad_academica: docente[0].modalidad_academica || 'trimestral'
                 };
             }
         } else if (tipoDb === 'apoderado') {
@@ -211,11 +213,12 @@ router.post('/login', async (req, res) => {
             if (apoderado.length > 0) {
                 // Obtener pupilos
                 const [pupilos] = await pool.query(`
-                    SELECT a.id, a.nombres, a.apellidos, c.nombre as curso, ae.establecimiento_id
+                    SELECT a.id, a.nombres, a.apellidos, c.nombre as curso, ae.establecimiento_id, e.modalidad_academica
                     FROM tb_apoderado_alumno aa
                     JOIN tb_alumnos a ON aa.alumno_id = a.id
                     LEFT JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id AND ae.activo = 1
                     LEFT JOIN tb_cursos c ON ae.curso_id = c.id
+                    LEFT JOIN tb_establecimientos e ON ae.establecimiento_id = e.id
                     WHERE aa.apoderado_id = ? AND aa.activo = 1
                 `, [apoderado[0].id]);
 
@@ -232,7 +235,8 @@ router.post('/login', async (req, res) => {
                         apellidos: p.apellidos,
                         curso: p.curso
                     })),
-                    establecimiento_id: pupilos.length > 0 ? pupilos[0].establecimiento_id : null
+                    establecimiento_id: pupilos.length > 0 ? pupilos[0].establecimiento_id : null,
+                    modalidad_academica: pupilos.length > 0 ? (pupilos[0].modalidad_academica || 'trimestral') : 'trimestral'
                 };
             }
         }
@@ -366,7 +370,7 @@ router.get('/me', async (req, res) => {
         // Obtener datos adicionales según tipo
         if (usuario.tipo_usuario === 'administrador') {
             const [admin] = await pool.query(`
-                SELECT a.*, e.nombre as establecimiento
+                SELECT a.*, e.nombre as establecimiento, ae.establecimiento_id, e.modalidad_academica
                 FROM tb_administradores a
                 LEFT JOIN tb_administrador_establecimiento ae ON a.id = ae.administrador_id AND ae.activo = 1
                 LEFT JOIN tb_establecimientos e ON ae.establecimiento_id = e.id
@@ -378,12 +382,18 @@ router.get('/me', async (req, res) => {
                     admin_id: admin[0].id,
                     nombres: admin[0].nombres,
                     apellidos: admin[0].apellidos,
-                    establecimiento: admin[0].establecimiento
+                    establecimiento: admin[0].establecimiento,
+                    establecimiento_id: admin[0].establecimiento_id,
+                    modalidad_academica: admin[0].modalidad_academica || 'trimestral'
                 };
             }
         } else if (usuario.tipo_usuario === 'docente') {
             const [docente] = await pool.query(`
-                SELECT d.* FROM tb_docentes d WHERE d.usuario_id = ?
+                SELECT d.*, de.establecimiento_id, e.modalidad_academica
+                FROM tb_docentes d
+                LEFT JOIN tb_docente_establecimiento de ON d.id = de.docente_id AND de.activo = 1
+                LEFT JOIN tb_establecimientos e ON de.establecimiento_id = e.id
+                WHERE d.usuario_id = ?
             `, [usuario.id]);
 
             if (docente.length > 0) {
@@ -391,7 +401,9 @@ router.get('/me', async (req, res) => {
                     docente_id: docente[0].id,
                     nombres: docente[0].nombres,
                     apellidos: docente[0].apellidos,
-                    iniciales: `${docente[0].nombres?.charAt(0) || ''}${docente[0].apellidos?.charAt(0) || ''}`
+                    iniciales: `${docente[0].nombres?.charAt(0) || ''}${docente[0].apellidos?.charAt(0) || ''}`,
+                    establecimiento_id: docente[0].establecimiento_id,
+                    modalidad_academica: docente[0].modalidad_academica || 'trimestral'
                 };
             }
         } else if (usuario.tipo_usuario === 'apoderado') {
@@ -401,11 +413,12 @@ router.get('/me', async (req, res) => {
 
             if (apoderado.length > 0) {
                 const [pupilos] = await pool.query(`
-                    SELECT a.id, a.nombres, a.apellidos, c.nombre as curso
+                    SELECT a.id, a.nombres, a.apellidos, c.nombre as curso, ae.establecimiento_id, e.modalidad_academica
                     FROM tb_apoderado_alumno aa
                     JOIN tb_alumnos a ON aa.alumno_id = a.id
                     LEFT JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id AND ae.activo = 1
                     LEFT JOIN tb_cursos c ON ae.curso_id = c.id
+                    LEFT JOIN tb_establecimientos e ON ae.establecimiento_id = e.id
                     WHERE aa.apoderado_id = ? AND aa.activo = 1
                 `, [apoderado[0].id]);
 
@@ -416,7 +429,9 @@ router.get('/me', async (req, res) => {
                     apellidos: apoderado[0].apellidos,
                     telefono: apoderado[0].telefono,
                     direccion: apoderado[0].direccion,
-                    pupilos: pupilos
+                    pupilos: pupilos,
+                    establecimiento_id: pupilos.length > 0 ? pupilos[0].establecimiento_id : null,
+                    modalidad_academica: pupilos.length > 0 ? (pupilos[0].modalidad_academica || 'trimestral') : 'trimestral'
                 };
             }
         }

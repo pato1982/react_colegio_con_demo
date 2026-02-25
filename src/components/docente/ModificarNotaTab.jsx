@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import es from 'date-fns/locale/es';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -6,12 +6,13 @@ import { useResponsive, useDropdown } from '../../hooks';
 import { SelectNativo, SelectMovil, AutocompleteAlumno } from './shared';
 import { ordenarCursos } from './shared/utils';
 import { apiFetch } from '../../utils/api';
+import { getPeriodos } from '../../utils/periodos';
 
 // Registrar locale español
 registerLocale('es', es);
 
 // Modal de edicion
-const ModalEditar = ({ nota, editNota, setEditNota, editTrimestre, setEditTrimestre, editFecha, setEditFecha, editComentario, setEditComentario, editPendiente, setEditPendiente, onGuardar, onCerrar, guardando, isMobile }) => (
+const ModalEditar = ({ nota, editNota, setEditNota, editTrimestre, setEditTrimestre, editFecha, setEditFecha, editComentario, setEditComentario, editPendiente, setEditPendiente, onGuardar, onCerrar, guardando, isMobile, periodos }) => (
   <div className="modal-overlay" onClick={onCerrar} style={{ zIndex: 1200, alignItems: 'flex-start', paddingTop: '75px' }}>
     <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxHeight: 'calc(100vh - 90px)' }}>
       <div className="modal-header">
@@ -41,11 +42,11 @@ const ModalEditar = ({ nota, editNota, setEditNota, editTrimestre, setEditTrimes
               />
             </div>
             <div className="form-group">
-              <label>Trimestre</label>
+              <label>{periodos?.nombreGenerico || 'Trimestre'}</label>
               <select className="form-control" value={editTrimestre} onChange={(e) => setEditTrimestre(e.target.value)}>
-                <option value="1">1er Trimestre</option>
-                <option value="2">2do Trimestre</option>
-                <option value="3">3er Trimestre</option>
+                {(periodos?.labelsFiltro || [{ id: 1, nombre: '1er Trimestre' }, { id: 2, nombre: '2do Trimestre' }, { id: 3, nombre: '3er Trimestre' }]).map(p => (
+                  <option key={p.id} value={String(p.id)}>{p.nombre}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -168,7 +169,8 @@ const FiltroFecha = ({ filtroCurso, fechasConNotas, filtroFecha, onFechaChange, 
   );
 };
 
-function ModificarNotaTab({ docenteId, establecimientoId }) {
+function ModificarNotaTab({ docenteId, establecimientoId, modalidad }) {
+  const periodos = useMemo(() => getPeriodos(modalidad), [modalidad]);
   // Estados para datos de API
   const [cursos, setCursos] = useState([]);
   const [asignaturas, setAsignaturas] = useState([]);
@@ -835,6 +837,7 @@ function ModificarNotaTab({ docenteId, establecimientoId }) {
             onCerrar={() => setModalEditar(false)}
             guardando={guardando}
             isMobile={isMobile}
+            periodos={periodos}
           />
         )
       }

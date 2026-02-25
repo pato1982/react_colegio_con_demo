@@ -268,7 +268,7 @@ function ApoderadoPage({ onCambiarVista, usuario }) {
   const renderTabContent = () => {
     const tabsConfig = [
       { id: 'informacion', Component: InformacionTab, props: { pupilo: pupiloSeleccionado, apoderado: apoderadoActual } },
-      { id: 'notas', Component: NotasTab, props: { pupilo: pupiloSeleccionado } },
+      { id: 'notas', Component: NotasTab, props: { pupilo: pupiloSeleccionado, modalidad: usuario?.modalidad_academica } },
       { id: 'comunicados', Component: ComunicadosTab, props: { pupilo: pupiloSeleccionado, usuarioId: apoderadoActual.id } },
       { id: 'progreso', Component: ProgresoTab, props: { pupilo: pupiloSeleccionado } }
     ];

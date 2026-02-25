@@ -128,22 +128,22 @@ function DocentePage({ onCambiarVista, usuarioDocente }) {
       {
         id: 'agregar-nota',
         Component: AgregarNotaTab,
-        props: { docenteId: docenteActual.id, establecimientoId: establecimientoActual?.id, usuarioId: usuarioDocente?.id }
+        props: { docenteId: docenteActual.id, establecimientoId: establecimientoActual?.id, usuarioId: usuarioDocente?.id, modalidad: usuarioDocente?.modalidad_academica }
       },
       {
         id: 'modificar-nota',
         Component: ModificarNotaTab,
-        props: { docenteId: docenteActual.id, establecimientoId: establecimientoActual?.id }
+        props: { docenteId: docenteActual.id, establecimientoId: establecimientoActual?.id, modalidad: usuarioDocente?.modalidad_academica }
       },
       {
         id: 'ver-notas',
         Component: VerNotasTab,
-        props: { docenteId: docenteActual.id, establecimientoId: establecimientoActual?.id }
+        props: { docenteId: docenteActual.id, establecimientoId: establecimientoActual?.id, modalidad: usuarioDocente?.modalidad_academica }
       },
       {
         id: 'progreso',
         Component: ProgresoTab,
-        props: { docenteId: docenteActual.id, establecimientoId: establecimientoActual?.id }
+        props: { docenteId: docenteActual.id, establecimientoId: establecimientoActual?.id, modalidad: usuarioDocente?.modalidad_academica }
       }
     ];
 

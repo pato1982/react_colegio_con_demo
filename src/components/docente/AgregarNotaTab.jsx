@@ -3,6 +3,7 @@ import { useResponsive, useDropdown } from '../../hooks';
 import { SelectNativo, SelectMovil, AutocompleteAlumno } from './shared';
 import { ordenarCursos } from './shared/utils';
 import { apiFetch } from '../../utils/api';
+import { getPeriodos } from '../../utils/periodos';
 // Demo data removed
 
 // Simple Error Boundary for this component
@@ -35,7 +36,8 @@ class ComponentErrorBoundary extends React.Component {
   }
 }
 
-function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
+function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId, modalidad }) {
+  const periodos = useMemo(() => getPeriodos(modalidad), [modalidad]);
   // Estados para datos cargados desde API
   const [cursos, setCursos] = useState([]);
   const [asignaturas, setAsignaturas] = useState([]);
@@ -96,11 +98,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
     );
   };
 
-  const trimestres = [
-    { id: '1', nombre: '1er Trimestre' },
-    { id: '2', nombre: '2do Trimestre' },
-    { id: '3', nombre: '3er Trimestre' }
-  ];
+  const trimestres = periodos.labelsFiltro.map(p => ({ id: String(p.id), nombre: p.nombre }));
 
   // Helpers de formateo
   const abreviarAsignatura = (nombre) => {
@@ -457,7 +455,7 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
           formatNombre={formatNombreMovil}
         />
         <SelectMovil
-          label="Trimestre"
+          label={periodos.nombreGenerico}
           value={trimestre}
           valueName={trimestreNombre}
           onChange={(id, nombre) => { setTrimestre(id); setTrimestreNombre(nombre); }}
@@ -567,12 +565,12 @@ function AgregarNotaTabInternal({ docenteId, establecimientoId, usuarioId }) {
       />
 
       <SelectNativo
-        label="Trimestre"
+        label={periodos.nombreGenerico}
         value={trimestre}
         onChange={(e) => {
           setTrimestre(e.target.value);
-          const nombres = { '1': '1er Trimestre', '2': '2do Trimestre', '3': '3er Trimestre' };
-          setTrimestreNombre(nombres[e.target.value] || '');
+          const match = trimestres.find(t => t.id === e.target.value);
+          setTrimestreNombre(match?.nombre || '');
         }}
         options={trimestres}
         placeholder="Seleccionar"

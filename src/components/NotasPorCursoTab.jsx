@@ -2,8 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useMensaje } from '../contexts';
 import { useDropdown } from '../hooks';
 import { apiFetch } from '../utils/api';
+import { getPeriodos } from '../utils/periodos';
 
-function NotasPorCursoTab() {
+function NotasPorCursoTab({ modalidad }) {
+  const periodos = useMemo(() => getPeriodos(modalidad), [modalidad]);
   const { mostrarMensaje } = useMensaje();
   const { dropdownAbierto, setDropdownAbierto } = useDropdown();
 
@@ -24,12 +26,8 @@ function NotasPorCursoTab() {
   const [trimestresActivos, setTrimestresActivos] = useState([]);
   const [cargando, setCargando] = useState(false);
 
-  // Trimestres disponibles
-  const trimestres = [
-    { id: 1, nombre: 'Trimestre 1' },
-    { id: 2, nombre: 'Trimestre 2' },
-    { id: 3, nombre: 'Trimestre 3' }
-  ];
+  // Periodos disponibles (dinamico segun modalidad)
+  const trimestres = periodos.labelsFiltro;
 
   // Abreviar nombres compuestos de asignaturas
   const abreviarNombre = (nombre) => {
@@ -189,8 +187,8 @@ function NotasPorCursoTab() {
         if (cantidadNotas > max) max = cantidadNotas;
       });
     });
-    return Math.max(max, 8); // Mínimo 8 columnas
-  }, [alumnosConNotas, trimestresActivos]);
+    return Math.max(max, periodos.notasPorPeriodo);
+  }, [alumnosConNotas, trimestresActivos, periodos.notasPorPeriodo]);
 
   return (
     <div className="tab-panel active">
@@ -265,7 +263,7 @@ function NotasPorCursoTab() {
             </div>
 
             <div className="form-group">
-              <label>Trimestre</label>
+              <label>{periodos.nombreGenerico}</label>
               <div className={`custom-select-container ${!filtros.asignaturaId ? 'disabled' : ''}`}>
                 <div
                   className="custom-select-trigger"
@@ -460,7 +458,7 @@ function NotasPorCursoTab() {
                 ? 'Seleccione un curso para comenzar'
                 : !filtros.asignaturaId
                   ? 'Seleccione una asignatura'
-                  : 'Seleccione un trimestre para ver las notas'}
+                  : `Seleccione un ${periodos.nombreGenerico.toLowerCase()} para ver las notas`}
             </div>
           )}
         </div>
