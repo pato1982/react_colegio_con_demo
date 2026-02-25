@@ -98,7 +98,7 @@ app.get('/api/establecimientos', async (req, res) => {
 
 // GET /api/alumnos - Obtener todos los alumnos con sus cursos
 app.get('/api/alumnos', async (req, res) => {
-    const { curso_id } = req.query;
+    const { curso_id, establecimiento_id = 1 } = req.query;
     const anioActual = new Date().getFullYear();
 
     try {
@@ -114,12 +114,12 @@ app.get('/api/alumnos', async (req, res) => {
         c.nombre AS curso_nombre,
         c.id AS curso_id
       FROM tb_alumnos a
-      LEFT JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id AND ae.activo = 1 AND ae.anio_academico = ?
+      JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id AND ae.activo = 1 AND ae.anio_academico = ? AND ae.establecimiento_id = ?
       LEFT JOIN tb_cursos c ON ae.curso_id = c.id
       WHERE a.activo = 1
     `;
 
-        const params = [anioActual];
+        const params = [anioActual, establecimiento_id];
 
         // Filtrar por curso si se especifica
         if (curso_id) {
@@ -140,6 +140,7 @@ app.get('/api/alumnos', async (req, res) => {
 
 // GET /api/alumnos/por-curso - Obtener alumnos agrupados por curso
 app.get('/api/alumnos/por-curso', async (req, res) => {
+    const { establecimiento_id = 1 } = req.query;
     const anioActual = new Date().getFullYear();
     try {
         const [rows] = await pool.query(`
@@ -154,11 +155,11 @@ app.get('/api/alumnos/por-curso', async (req, res) => {
         c.nombre AS curso_nombre,
         c.id AS curso_id
       FROM tb_alumnos a
-      LEFT JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id AND ae.activo = 1 AND ae.anio_academico = ?
+      JOIN tb_alumno_establecimiento ae ON a.id = ae.alumno_id AND ae.activo = 1 AND ae.anio_academico = ? AND ae.establecimiento_id = ?
       LEFT JOIN tb_cursos c ON ae.curso_id = c.id
       WHERE a.activo = 1
       ORDER BY c.nombre, a.apellidos, a.nombres
-    `, [anioActual]);
+    `, [anioActual, establecimiento_id]);
 
         // Agrupar por curso
         const alumnosPorCurso = {};

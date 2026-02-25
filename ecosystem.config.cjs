@@ -15,6 +15,14 @@ module.exports = {
             env: {
                 PORT: 5173
             }
+        },
+        {
+            name: "tech-admin",
+            script: "./tech-admin/server.js",
+            env: {
+                NODE_ENV: "production",
+                TECH_PORT: 3002
+            }
         }
     ]
 };

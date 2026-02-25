@@ -243,7 +243,8 @@ router.post('/login', async (req, res) => {
                 id: usuario.id,
                 email: usuario.email,
                 tipo: tipo,
-                tipo_usuario: tipoDb
+                tipo_usuario: tipoDb,
+                establecimiento_id: datosAdicionales.establecimiento_id || null
             },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }

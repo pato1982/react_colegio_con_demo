@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useDropdown } from '../hooks';
-import { useMensaje } from '../contexts';
+import { useMensaje, useAuth } from '../contexts';
 import { apiFetch } from '../utils/api';
 
 function AsistenciaTab() {
   const { mostrarMensaje } = useMensaje();
+  const { usuario } = useAuth();
+  const establecimientoId = usuario?.establecimiento_id || 1;
   const [filtros, setFiltros] = useState({
     curso: '',
     cursoId: null
@@ -352,7 +354,7 @@ function AsistenciaTab() {
           fecha: fechaStr,
           estado: popup.estadoNuevo,
           observacion: popup.observacion || null,
-          establecimiento_id: 1
+          establecimiento_id: establecimientoId
         })
       });
 

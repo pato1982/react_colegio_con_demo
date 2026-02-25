@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../utils/api';
 import { useResponsive } from '../hooks';
+import { useAuth } from '../contexts';
 
 const MatriculasTab = ({ mostrarMensaje }) => {
+    const { usuario } = useAuth();
+    const establecimientoId = usuario?.establecimiento_id || 1;
     // ESTADOS
     const [seccionActual, setSeccionActual] = useState(1);
     const [matriculando, setMatriculando] = useState(false);
@@ -220,7 +223,7 @@ const MatriculasTab = ({ mostrarMensaje }) => {
         setMatriculando(true);
         try {
             const dirApoderadoFinal = mismaDireccion ? form.direccion_alumno : form.direccion_apoderado;
-            const payload = { establishment_id: 1, ...form, direccion_apoderado: dirApoderadoFinal, establecimiento_id: 1 };
+            const payload = { establishment_id: establecimientoId, ...form, direccion_apoderado: dirApoderadoFinal, establecimiento_id: establecimientoId };
             const res = await apiFetch(`/matriculas`, { method: 'POST', body: JSON.stringify(payload) });
             const data = await res.json();
 

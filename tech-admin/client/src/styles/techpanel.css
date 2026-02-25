@@ -496,6 +496,125 @@ a { color: var(--blue); text-decoration: none; }
   padding: 8px 20px;
 }
 
+/* Modalidad Académica */
+.modalidad-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.modalidad-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.modalidad-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.modalidad-option input[type="radio"] {
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.modalidad-detalle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Estructura de Cursos */
+.estructura-section {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.estructura-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.niveles-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.nivel-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nivel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 0;
+}
+
+.nivel-header input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.nivel-opciones {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 24px;
+}
+
+.nivel-detalle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.nivel-opciones select {
+  padding: 4px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.nivel-opciones select:focus {
+  border-color: var(--blue);
+  outline: none;
+}
+
+.estructura-resumen {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.estructura-resumen strong {
+  color: var(--text-primary);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   :root { --sidebar-width: 60px; }

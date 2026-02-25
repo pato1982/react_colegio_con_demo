@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { api } from '../api'
 
 function formatRut(value) {
@@ -24,14 +24,44 @@ function generarCodigo() {
   return code.slice(0, 3) + '-' + code.slice(3, 6) + '-' + code.slice(6, 9) + '-' + code.slice(9, 12)
 }
 
+// Cada item genera cursos: nivel (para tb_cursos), grados que abarca, secciones
+const ITEMS_ESTRUCTURA = [
+  { key: 'prekinder', label: 'Pre-Kinder', nivel: 'parvularia', grados: [1], detalle: null },
+  { key: 'kinder', label: 'Kinder', nivel: 'parvularia', grados: [2], detalle: null },
+  { key: 'basica', label: 'Básica', nivel: 'basica', grados: [1,2,3,4,5,6,7,8], detalle: '1° a 8°' },
+  { key: 'media', label: 'Media', nivel: 'media', grados: [1,2,3,4], detalle: '1° a 4°' },
+]
+
+const INICIAL_ESTRUCTURA = {
+  prekinder: { activo: false, secciones: 1 },
+  kinder: { activo: false, secciones: 1 },
+  basica: { activo: false, secciones: 1 },
+  media: { activo: false, secciones: 1 },
+}
+
 export default function RegistroAdmin() {
   const [form, setForm] = useState({
     nombres: '', apellidos: '', rut: '', telefono: '',
     correo: '', establecimiento: ''
   })
+  const [estructura, setEstructura] = useState(INICIAL_ESTRUCTURA)
+  const [modalidad, setModalidad] = useState('trimestral')
   const [codigo, setCodigo] = useState('')
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState(null)
+
+  const resumen = useMemo(() => {
+    let total = 0
+    const parts = []
+    for (const item of ITEMS_ESTRUCTURA) {
+      const conf = estructura[item.key]
+      if (!conf.activo) continue
+      const count = item.grados.length * conf.secciones
+      total += count
+      parts.push({ label: item.label.toLowerCase(), count })
+    }
+    return { total, parts }
+  }, [estructura])
 
   const handleChange = e => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
@@ -39,6 +69,20 @@ export default function RegistroAdmin() {
 
   const handleRut = e => {
     setForm(f => ({ ...f, rut: formatRut(e.target.value) }))
+  }
+
+  const toggleItem = key => {
+    setEstructura(e => ({
+      ...e,
+      [key]: { ...e[key], activo: !e[key].activo }
+    }))
+  }
+
+  const setSecciones = (key, val) => {
+    setEstructura(e => ({
+      ...e,
+      [key]: { ...e[key], secciones: parseInt(val) }
+    }))
   }
 
   const handleGenerar = () => {
@@ -58,6 +102,22 @@ export default function RegistroAdmin() {
       return
     }
 
+    const alguno = ITEMS_ESTRUCTURA.some(item => estructura[item.key].activo)
+    if (!alguno) {
+      setMsg({ type: 'error', text: 'Debes seleccionar al menos un nivel educativo' })
+      return
+    }
+
+    // Build estructura_cursos payload
+    const estructura_cursos = []
+    for (const item of ITEMS_ESTRUCTURA) {
+      const conf = estructura[item.key]
+      if (!conf.activo) continue
+      for (const grado of item.grados) {
+        estructura_cursos.push({ nivel: item.nivel, grado, secciones: conf.secciones })
+      }
+    }
+
     setLoading(true)
     try {
       const res = await api('/registro/admin', {
@@ -69,13 +129,17 @@ export default function RegistroAdmin() {
           email: form.correo,
           telefono: form.telefono,
           establecimiento: form.establecimiento,
-          codigo: codigo.replace(/[\s\-]/g, '')
+          codigo: codigo.replace(/[\s\-]/g, ''),
+          modalidad_academica: modalidad,
+          estructura_cursos
         })
       })
       if (res.error) throw new Error(res.error)
       setMsg({ type: 'success', text: res.message || 'Pre-registro confirmado con éxito' })
       setForm({ nombres: '', apellidos: '', rut: '', telefono: '', correo: '', establecimiento: '' })
       setCodigo('')
+      setModalidad('trimestral')
+      setEstructura({ ...INICIAL_ESTRUCTURA })
     } catch (err) {
       setMsg({ type: 'error', text: err.message })
     } finally {
@@ -122,6 +186,69 @@ export default function RegistroAdmin() {
             <div className="form-group">
               <label>Establecimiento *</label>
               <input type="text" name="establecimiento" value={form.establecimiento} onChange={handleChange} placeholder="Nombre del establecimiento" />
+            </div>
+          </div>
+
+          <div className="estructura-section">
+            <label className="estructura-title">Configuración Académica</label>
+
+            <div className="modalidad-row">
+              <span className="modalidad-label">Modalidad:</span>
+              <label className="modalidad-option">
+                <input type="radio" name="modalidad" value="trimestral" checked={modalidad === 'trimestral'} onChange={() => setModalidad('trimestral')} />
+                <span>Trimestral</span>
+                <span className="modalidad-detalle">(3 periodos)</span>
+              </label>
+              <label className="modalidad-option">
+                <input type="radio" name="modalidad" value="semestral" checked={modalidad === 'semestral'} onChange={() => setModalidad('semestral')} />
+                <span>Semestral</span>
+                <span className="modalidad-detalle">(2 periodos)</span>
+              </label>
+            </div>
+
+            <label className="estructura-title" style={{ marginTop: 12 }}>Estructura de Cursos</label>
+            <div className="niveles-grid">
+              {ITEMS_ESTRUCTURA.map(item => {
+                const conf = estructura[item.key]
+                return (
+                  <div key={item.key} className="nivel-col">
+                    <label className="nivel-header">
+                      <input
+                        type="checkbox"
+                        checked={conf.activo}
+                        onChange={() => toggleItem(item.key)}
+                      />
+                      <span>{item.label}</span>
+                      {item.detalle && <span className="nivel-detalle">{item.detalle}</span>}
+                    </label>
+                    {conf.activo && (
+                      <div className="nivel-opciones">
+                        <select
+                          value={conf.secciones}
+                          onChange={e => setSecciones(item.key, e.target.value)}
+                        >
+                          <option value={1}>1 sección</option>
+                          <option value={2}>2 secciones</option>
+                          <option value={3}>3 secciones</option>
+                          <option value={4}>4 secciones</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="estructura-resumen">
+              Total: <strong>{resumen.total} cursos</strong>
+              {resumen.parts.length > 0 && (
+                <span>
+                  {' ('}
+                  {resumen.parts.map((p, i) => (
+                    <span key={i}>{i > 0 ? ' + ' : ''}{p.count} {p.label}</span>
+                  ))}
+                  {')'}
+                </span>
+              )}
             </div>
           </div>
 

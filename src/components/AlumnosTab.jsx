@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useResponsive, useDropdown } from '../hooks';
-import { useMensaje } from '../contexts';
+import { useMensaje, useAuth } from '../contexts';
 import { apiFetch } from '../utils/api';
 
 // Componente Select para movil
@@ -27,7 +27,7 @@ const SelectMovilLocal = ({ label, value, valueName, onChange, options, placehol
 );
 
 // Modal de edicion COMPLETO CON PESTAÑAS
-const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar }) => {
+const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar, establecimientoId }) => {
   const { isMobile } = useResponsive();
   const [activeTab, setActiveTab] = useState('alumno'); // 'alumno' | 'apoderado'
   const [loading, setLoading] = useState(true);
@@ -125,7 +125,8 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
             ...formAlumno,
             curso_id: formAlumno.curso_id ? parseInt(formAlumno.curso_id) : null,
             tiene_nee: formAlumno.tiene_nee === '1' ? 1 : 0,
-            usuario_modificacion: 'Administrador'
+            usuario_modificacion: 'Administrador',
+            establecimiento_id: establecimientoId
           })
         });
         const data = await response.json();
@@ -137,7 +138,7 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
       } else {
         const response = await apiFetch(`/alumnos/${alumnoInicial.id}/apoderado`, {
           method: 'PUT',
-          body: JSON.stringify(formApoderado)
+          body: JSON.stringify({ ...formApoderado, establecimiento_id: establecimientoId })
         });
         const data = await response.json();
         if (data.success) {
@@ -423,6 +424,8 @@ const ModalEditarAlumno = ({ alumno: alumnoInicial, cursos, onGuardar, onCerrar 
 
 function AlumnosTab() {
   const { mostrarMensaje } = useMensaje();
+  const { usuario } = useAuth();
+  const establecimientoId = usuario?.establecimiento_id || 1;
   const [filtros, setFiltros] = useState({ cursoId: '', cursoNombre: '', busquedaAlumno: '', alumnoSeleccionado: null });
   const [modalEditar, setModalEditar] = useState({ visible: false, alumno: null });
   const [cursosDB, setCursosDB] = useState([]);
@@ -566,7 +569,7 @@ function AlumnosTab() {
         const response = await apiFetch(`/alumnos/${alumno.id}`, {
           method: 'DELETE',
   
-          body: JSON.stringify({ usuario_modificacion: 'Administrador' })
+          body: JSON.stringify({ usuario_modificacion: 'Administrador', establecimiento_id: establecimientoId })
         });
         const data = await response.json();
         if (data.success) {
@@ -789,6 +792,7 @@ function AlumnosTab() {
           cursos={cursosDB}
           onGuardar={handleGuardarEdicion}
           onCerrar={() => setModalEditar({ visible: false, alumno: null })}
+          establecimientoId={establecimientoId}
         />
       )}
     </div>

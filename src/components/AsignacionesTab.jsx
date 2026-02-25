@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useMensaje } from '../contexts';
+import { useMensaje, useAuth } from '../contexts';
 import { useDropdown } from '../hooks';
 import { apiFetch } from '../utils/api';
 
 function AsignacionesTab() {
   const { mostrarMensaje } = useMensaje();
+  const { usuario } = useAuth();
+  const establecimientoId = usuario?.establecimiento_id || 1;
   const [subTab, setSubTab] = useState('asignar');
   const { dropdownAbierto, setDropdownAbierto } = useDropdown();
 
@@ -121,7 +123,7 @@ function AsignacionesTab() {
           docente_id: parseInt(formData.docenteId),
           curso_id: parseInt(formData.cursoId),
           asignaturas: formData.asignaturas,
-          establecimiento_id: 1,
+          establecimiento_id: establecimientoId,
           usuario_id: null,
           tipo_usuario: 'administrador',
           nombre_usuario: 'Administrador del Sistema'
@@ -162,7 +164,7 @@ function AsignacionesTab() {
           method: 'DELETE',
   
           body: JSON.stringify({
-            establecimiento_id: 1,
+            establecimiento_id: establecimientoId,
             usuario_id: null,
             tipo_usuario: 'administrador',
             nombre_usuario: 'Administrador del Sistema'

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useMensaje } from '../contexts';
+import { useMensaje, useAuth } from '../contexts';
 import { useDropdown, useResponsive } from '../hooks';
 import { apiFetch } from '../utils/api';
 
 // Modal para editar docente
-const ModalEditarDocente = ({ docente, asignaturas, onGuardar, onCerrar }) => {
+const ModalEditarDocente = ({ docente, asignaturas, onGuardar, onCerrar, establecimientoId }) => {
   const { isMobile } = useResponsive();
   const [formEditar, setFormEditar] = useState({
     rut: docente?.rut || '',
@@ -42,7 +42,7 @@ const ModalEditarDocente = ({ docente, asignaturas, onGuardar, onCerrar }) => {
           apellidos: formEditar.apellidos,
           email: formEditar.email,
           asignaturas: formEditar.especialidades,
-          establecimiento_id: 1,
+          establecimiento_id: establecimientoId,
           usuario_id: null,
           tipo_usuario: 'administrador',
           nombre_usuario: 'Administrador del Sistema'
@@ -137,6 +137,8 @@ const ModalEditarDocente = ({ docente, asignaturas, onGuardar, onCerrar }) => {
 };
 
 function DocentesTab() {
+  const { usuario } = useAuth();
+  const establecimientoId = usuario?.establecimiento_id || 1;
   const { mostrarMensaje } = useMensaje();
   const [subTab, setSubTab] = useState('agregar');
   const { dropdownAbierto, setDropdownAbierto } = useDropdown();
@@ -221,7 +223,7 @@ function DocentesTab() {
           apellidos: formData.apellidos,
           email: formData.email,
           asignaturas: formData.especialidades,
-          establecimiento_id: 1
+          establecimiento_id: establecimientoId
         })
       });
 
@@ -258,7 +260,7 @@ function DocentesTab() {
         const response = await apiFetch(`/docentes/${docente.id}`, {
           method: 'DELETE',
           body: JSON.stringify({
-            establecimiento_id: 1,
+            establecimiento_id: establecimientoId,
             usuario_id: null,
             tipo_usuario: 'administrador',
             nombre_usuario: 'Administrador del Sistema'
@@ -301,7 +303,7 @@ function DocentesTab() {
         method: 'POST',
         body: JSON.stringify({
           nombre: nuevaAsignatura.trim(),
-          establecimiento_id: 1
+          establecimiento_id: establecimientoId
         })
       });
 
@@ -654,6 +656,7 @@ function DocentesTab() {
           asignaturas={asignaturasDB}
           onGuardar={handleGuardarEdicion}
           onCerrar={() => setModalEditar({ visible: false, docente: null })}
+          establecimientoId={establecimientoId}
         />
       )}
 
