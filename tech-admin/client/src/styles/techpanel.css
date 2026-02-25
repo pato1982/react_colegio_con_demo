@@ -470,6 +470,12 @@ a { color: var(--blue); text-decoration: none; }
   gap: 16px;
 }
 
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
 .form-row-4 {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
@@ -494,6 +500,26 @@ a { color: var(--blue); text-decoration: none; }
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 20px;
+}
+
+/* Establishment indicator */
+.est-indicator {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+.est-indicator.existing {
+  background: rgba(74, 125, 255, 0.15);
+  color: var(--blue);
+}
+
+.est-indicator.new {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--orange);
 }
 
 /* Modalidad Académica */

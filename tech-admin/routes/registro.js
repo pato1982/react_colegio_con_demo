@@ -14,7 +14,10 @@ router.get('/registro/establecimientos', async (req, res) => {
 
 // POST /api/registro/admin — Crear pre-registro de administrador con código
 router.post('/registro/admin', async (req, res) => {
-  const { rut, nombres, apellidos, email, telefono, establecimiento, codigo: codigoRaw, modalidad_academica, estructura_cursos } = req.body;
+  const { rut, nombres, apellidos, email, telefono, establecimiento, codigo: codigoRaw,
+    modalidad_academica, estructura_cursos,
+    direccion_establecimiento, comuna_establecimiento, region_establecimiento,
+    telefono_establecimiento, email_establecimiento } = req.body;
   const codigo = codigoRaw ? codigoRaw.replace(/[\s\-]/g, '') : '';
 
   if (!rut || !nombres || !apellidos || !email || !establecimiento || !codigo) {
@@ -25,60 +28,16 @@ router.post('/registro/admin', async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // Buscar o crear establecimiento por nombre
-    let establecimientoId;
+    // Determinar si es establecimiento existente o nuevo
+    let establecimientoId = null;
+    let nombreEstablecimiento = null;
     const [existeEst] = await connection.query(
       'SELECT id FROM tb_establecimientos WHERE nombre = ?', [establecimiento]
     );
     if (existeEst.length > 0) {
       establecimientoId = existeEst[0].id;
     } else {
-      const modalidad = (modalidad_academica === 'semestral') ? 'semestral' : 'trimestral';
-      const [newEst] = await connection.query(
-        'INSERT INTO tb_establecimientos (nombre, modalidad_academica, activo) VALUES (?, ?, 1)', [establecimiento, modalidad]
-      );
-      establecimientoId = newEst.insertId;
-
-      // Crear cursos para el nuevo establecimiento
-      if (estructura_cursos && estructura_cursos.length > 0) {
-        const LETRAS = ['A', 'B', 'C', 'D'];
-        const anio = new Date().getFullYear();
-        const cursos = [];
-        const nivelesActivos = new Set();
-
-        for (const item of estructura_cursos) {
-          const { nivel, grado, secciones } = item;
-          nivelesActivos.add(nivel);
-          for (let s = 0; s < secciones; s++) {
-            const letra = LETRAS[s];
-            let nombre, codigoCurso;
-            if (nivel === 'parvularia') {
-              nombre = `${grado === 1 ? 'Pre-Kinder' : 'Kinder'} ${letra}`;
-              codigoCurso = `${grado === 1 ? 'PK' : 'K'}${letra}`;
-            } else if (nivel === 'basica') {
-              nombre = `${grado}° Basico ${letra}`;
-              codigoCurso = `${grado}B${letra}`;
-            } else {
-              nombre = `${grado}° Medio ${letra}`;
-              codigoCurso = `${grado}M${letra}`;
-            }
-            cursos.push([establecimientoId, nombre, codigoCurso, nivel, grado, letra, anio]);
-          }
-        }
-
-        if (cursos.length > 0) {
-          await connection.query(
-            `INSERT INTO tb_cursos (establecimiento_id, nombre, codigo, nivel, grado, letra, anio_academico)
-             VALUES ?`,
-            [cursos]
-          );
-          const nivelStr = [...nivelesActivos].join(',');
-          await connection.query(
-            'UPDATE tb_establecimientos SET nivel_educativo = ? WHERE id = ?',
-            [nivelStr, establecimientoId]
-          );
-        }
-      }
+      nombreEstablecimiento = establecimiento;
     }
 
     // Verificar que el RUT no tenga ya un pre-registro activo
@@ -91,7 +50,7 @@ router.post('/registro/admin', async (req, res) => {
       return res.status(400).json({ error: 'Ya existe un pre-registro activo para este RUT' });
     }
 
-    // Crear código de validación
+    // Crear código de validación (establecimiento_id puede ser NULL si es nuevo)
     const [resultCodigo] = await connection.query(
       `INSERT INTO tb_codigos_validacion (establecimiento_id, codigo, tipo, descripcion, usos_maximos, fecha_expiracion, activo)
        VALUES (?, ?, 'administrador', 'Código generado desde TechPanel', 1, DATE_ADD(CURDATE(), INTERVAL 30 DAY), 1)`,
@@ -99,12 +58,21 @@ router.post('/registro/admin', async (req, res) => {
     );
     const codigoId = resultCodigo.insertId;
 
-    // Crear pre-registro
+    // Crear pre-registro con todos los datos del establecimiento
     await connection.query(
       `INSERT INTO tb_preregistro_administradores
-       (establecimiento_id, rut, nombres, apellidos, email, telefono, codigo_validacion_id, activo)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
-      [establecimientoId, rut, nombres, apellidos, email, telefono || null, codigoId]
+       (establecimiento_id, nombre_establecimiento, direccion_establecimiento, comuna_establecimiento,
+        region_establecimiento, telefono_establecimiento, email_establecimiento,
+        modalidad_academica, estructura_cursos,
+        rut, nombres, apellidos, email, telefono, codigo_validacion_id, activo)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [establecimientoId, nombreEstablecimiento,
+       direccion_establecimiento || null, comuna_establecimiento || null,
+       region_establecimiento || null, telefono_establecimiento || null,
+       email_establecimiento || null,
+       nombreEstablecimiento ? (modalidad_academica || 'trimestral') : null,
+       nombreEstablecimiento && estructura_cursos ? JSON.stringify(estructura_cursos) : null,
+       rut, nombres, apellidos, email, telefono || null, codigoId]
     );
 
     await connection.commit();

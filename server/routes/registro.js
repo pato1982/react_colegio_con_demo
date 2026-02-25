@@ -131,7 +131,7 @@ router.post('/validar-codigo-admin', async (req, res) => {
         const [preregistros] = await pool.query(`
             SELECT pa.*, e.nombre as establecimiento_nombre
             FROM tb_preregistro_administradores pa
-            JOIN tb_establecimientos e ON pa.establecimiento_id = e.id
+            LEFT JOIN tb_establecimientos e ON pa.establecimiento_id = e.id
             WHERE pa.codigo_validacion_id = ?
               AND pa.activo = 1
               AND pa.usado = 0
@@ -179,13 +179,15 @@ router.post('/validar-codigo-admin', async (req, res) => {
         }
 
         // Todo OK
+        const esNuevo = preregistro.establecimiento_id === null;
         res.json({
             success: true,
             datos: {
-                establecimiento: preregistro.establecimiento_nombre,
+                establecimiento: esNuevo ? preregistro.nombre_establecimiento : preregistro.establecimiento_nombre,
                 establecimiento_id: preregistro.establecimiento_id,
                 nombres: preregistro.nombres,
-                apellidos: preregistro.apellidos
+                apellidos: preregistro.apellidos,
+                es_nuevo: esNuevo
             }
         });
 
@@ -216,15 +218,13 @@ router.post('/validar-admin', async (req, res) => {
         const [preregistros] = await pool.query(`
             SELECT pa.*, e.nombre as establecimiento_nombre
             FROM tb_preregistro_administradores pa
-            JOIN tb_establecimientos e ON pa.establecimiento_id = e.id
+            LEFT JOIN tb_establecimientos e ON pa.establecimiento_id = e.id
             WHERE UPPER(pa.rut) = UPPER(?)
               AND pa.activo = 1
               AND pa.usado = 0
         `, [rut]);
 
         if (preregistros.length === 0) {
-            // Verificar si el email coincide con algún registro (opcional como chequeo extra)
-            // Registrar intento fallido
             await registrarFalloAdmin(null, { rut, email, nombres: '', apellidos: '' }, null, 'rut_no_preregistrado', req);
             return res.status(400).json({
                 success: false,
@@ -242,6 +242,7 @@ router.post('/validar-admin', async (req, res) => {
             });
         }
 
+        const esNuevo = preregistro.establecimiento_id === null;
         res.json({
             success: true,
             datos: {
@@ -249,8 +250,9 @@ router.post('/validar-admin', async (req, res) => {
                 apellidos: preregistro.apellidos,
                 email: preregistro.email,
                 telefono: preregistro.telefono,
-                establecimiento: preregistro.establecimiento_nombre,
-                establecimiento_id: preregistro.establecimiento_id
+                establecimiento: esNuevo ? preregistro.nombre_establecimiento : preregistro.establecimiento_nombre,
+                establecimiento_id: preregistro.establecimiento_id,
+                es_nuevo: esNuevo
             }
         });
 
@@ -471,9 +473,81 @@ router.post('/admin', async (req, res) => {
         }
 
         const preregistro = preregistros[0];
-        const establecimientoId = preregistro.establecimiento_id;
+        let establecimientoId = preregistro.establecimiento_id;
 
-        // 2. Verificar que el email no exista ya como usuario
+        // 2b. Si es establecimiento nuevo (establecimiento_id NULL), crearlo ahora
+        if (establecimientoId === null) {
+            const modalidad = preregistro.modalidad_academica || 'trimestral';
+            const [newEst] = await connection.query(
+                `INSERT INTO tb_establecimientos (nombre, direccion, comuna, region, telefono, email, modalidad_academica, activo)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+                [preregistro.nombre_establecimiento,
+                 preregistro.direccion_establecimiento || null,
+                 preregistro.comuna_establecimiento || null,
+                 preregistro.region_establecimiento || null,
+                 preregistro.telefono_establecimiento || null,
+                 preregistro.email_establecimiento || null,
+                 modalidad]
+            );
+            establecimientoId = newEst.insertId;
+
+            // Crear cursos basándose en estructura_cursos JSON
+            let estructuraCursos = preregistro.estructura_cursos;
+            if (typeof estructuraCursos === 'string') {
+                estructuraCursos = JSON.parse(estructuraCursos);
+            }
+            if (estructuraCursos && estructuraCursos.length > 0) {
+                const LETRAS = ['A', 'B', 'C', 'D'];
+                const anio = new Date().getFullYear();
+                const cursos = [];
+                const nivelesActivos = new Set();
+
+                for (const item of estructuraCursos) {
+                    const { nivel, grado, secciones } = item;
+                    nivelesActivos.add(nivel);
+                    for (let s = 0; s < secciones; s++) {
+                        const letra = LETRAS[s];
+                        let nombre, codigoCurso;
+                        if (nivel === 'parvularia') {
+                            nombre = `${grado === 1 ? 'Pre-Kinder' : 'Kinder'} ${letra}`;
+                            codigoCurso = `${grado === 1 ? 'PK' : 'K'}${letra}`;
+                        } else if (nivel === 'basica') {
+                            nombre = `${grado}° Basico ${letra}`;
+                            codigoCurso = `${grado}B${letra}`;
+                        } else {
+                            nombre = `${grado}° Medio ${letra}`;
+                            codigoCurso = `${grado}M${letra}`;
+                        }
+                        cursos.push([establecimientoId, nombre, codigoCurso, nivel, grado, letra, anio]);
+                    }
+                }
+
+                if (cursos.length > 0) {
+                    await connection.query(
+                        `INSERT INTO tb_cursos (establecimiento_id, nombre, codigo, nivel, grado, letra, anio_academico)
+                         VALUES ?`,
+                        [cursos]
+                    );
+                    const nivelStr = [...nivelesActivos].join(',');
+                    await connection.query(
+                        'UPDATE tb_establecimientos SET nivel_educativo = ? WHERE id = ?',
+                        [nivelStr, establecimientoId]
+                    );
+                }
+            }
+
+            // Actualizar pre-registro y código con el nuevo establecimiento_id
+            await connection.query(
+                'UPDATE tb_preregistro_administradores SET establecimiento_id = ? WHERE id = ?',
+                [establecimientoId, preregistro.id]
+            );
+            await connection.query(
+                'UPDATE tb_codigos_validacion SET establecimiento_id = ? WHERE id = ?',
+                [establecimientoId, codigoValidacionId]
+            );
+        }
+
+        // 3. Verificar que el email no exista ya como usuario
         const [existeEmail] = await connection.query(
             'SELECT id FROM tb_usuarios WHERE email = ?',
             [email]
@@ -488,7 +562,7 @@ router.post('/admin', async (req, res) => {
             });
         }
 
-        // 3. Verificar que el RUT no exista ya como administrador
+        // 4. Verificar que el RUT no exista ya como administrador
         const [existeRut] = await connection.query(
             'SELECT id FROM tb_administradores WHERE rut = ?',
             [rut]
