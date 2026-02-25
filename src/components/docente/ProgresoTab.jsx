@@ -417,7 +417,7 @@ function ProgresoTab({ docenteId, establecimientoId, modalidad }) {
                 </div>
                 <div style={{ flex: 1 }}>
                   <SelectNativo
-                    label="Trimestre"
+                    label={periodos.nombreGenerico}
                     value={trimestreSeleccionado}
                     onChange={handleTrimestreChange}
                     options={trimestres}
