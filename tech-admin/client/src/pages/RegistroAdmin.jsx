@@ -295,11 +295,10 @@ export default function RegistroAdmin() {
             {codigo && (
               <span className="codigo-display">{codigo}</span>
             )}
+            <button type="submit" className="login-btn codigo-submit" disabled={loading}>
+              {loading ? 'Registrando...' : 'Confirmar pre registro'}
+            </button>
           </div>
-
-          <button type="submit" className="login-btn" disabled={loading} style={{ marginTop: 16 }}>
-            {loading ? 'Registrando...' : 'Confirmar pre registro'}
-          </button>
         </form>
       </div>
     </div>

@@ -502,6 +502,13 @@ a { color: var(--blue); text-decoration: none; }
   padding: 8px 20px;
 }
 
+.codigo-submit {
+  margin-left: auto;
+  width: auto;
+  padding: 12px 32px;
+  margin-top: 0;
+}
+
 /* Establishment indicator */
 .est-indicator {
   display: inline-block;
