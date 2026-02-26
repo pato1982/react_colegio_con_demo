@@ -618,6 +618,77 @@ router.post('/admin', async (req, res) => {
             WHERE id = ?
         `, [usuarioId, codigoValidacionId]);
 
+        // 10. Si es reemplazo de admin, desactivar anterior y transferir chats
+        if (preregistro.reemplaza_admin_id) {
+            // Obtener usuario_id del admin anterior
+            const [adminAnterior] = await connection.query(
+                'SELECT usuario_id FROM tb_administradores WHERE id = ?',
+                [preregistro.reemplaza_admin_id]
+            );
+
+            if (adminAnterior.length > 0) {
+                const oldUsuarioId = adminAnterior[0].usuario_id;
+
+                // Desactivar admin anterior
+                await connection.query(
+                    'UPDATE tb_administradores SET activo = 0 WHERE id = ?',
+                    [preregistro.reemplaza_admin_id]
+                );
+                await connection.query(
+                    'UPDATE tb_administrador_establecimiento SET activo = 0, fecha_termino = CURDATE() WHERE administrador_id = ?',
+                    [preregistro.reemplaza_admin_id]
+                );
+                await connection.query(
+                    'UPDATE tb_usuarios SET activo = 0 WHERE id = ?',
+                    [oldUsuarioId]
+                );
+
+                // Transferir chats: conversaciones donde el viejo admin participa
+                const [convs] = await connection.query(
+                    'SELECT id, usuario1_id, usuario2_id, establecimiento_id, iniciada_por FROM tb_chat_conversaciones WHERE (usuario1_id = ? OR usuario2_id = ?) AND activo = 1',
+                    [oldUsuarioId, oldUsuarioId]
+                );
+
+                for (const conv of convs) {
+                    const isUser1 = conv.usuario1_id === oldUsuarioId;
+                    const otherUserId = isUser1 ? conv.usuario2_id : conv.usuario1_id;
+                    const newUser1 = isUser1 ? usuarioId : conv.usuario1_id;
+                    const newUser2 = isUser1 ? conv.usuario2_id : usuarioId;
+
+                    // Check if a conversation already exists between new admin and the other user
+                    const [existing] = await connection.query(
+                        `SELECT id FROM tb_chat_conversaciones
+                         WHERE ((usuario1_id = ? AND usuario2_id = ?) OR (usuario1_id = ? AND usuario2_id = ?))
+                           AND establecimiento_id = ? AND id != ?`,
+                        [usuarioId, otherUserId, otherUserId, usuarioId, conv.establecimiento_id, conv.id]
+                    );
+
+                    if (existing.length > 0) {
+                        // Move messages to existing conversation, deactivate old one
+                        await connection.query(
+                            'UPDATE tb_chat_mensajes SET conversacion_id = ?, remitente_id = CASE WHEN remitente_id = ? THEN ? ELSE remitente_id END WHERE conversacion_id = ?',
+                            [existing[0].id, oldUsuarioId, usuarioId, conv.id]
+                        );
+                        await connection.query(
+                            'UPDATE tb_chat_conversaciones SET activo = 0 WHERE id = ?',
+                            [conv.id]
+                        );
+                    } else {
+                        // Transfer conversation to new admin
+                        await connection.query(
+                            'UPDATE tb_chat_conversaciones SET usuario1_id = ?, usuario2_id = ?, iniciada_por = CASE WHEN iniciada_por = ? THEN ? ELSE iniciada_por END WHERE id = ?',
+                            [newUser1, newUser2, oldUsuarioId, usuarioId, conv.id]
+                        );
+                        // Update messages sender
+                        await connection.query(
+                            'UPDATE tb_chat_mensajes SET remitente_id = ? WHERE conversacion_id = ? AND remitente_id = ?',
+                            [usuarioId, conv.id, oldUsuarioId]
+                        );
+                    }
+                }
+            }
+        }
+
         await connection.commit();
 
         res.json({

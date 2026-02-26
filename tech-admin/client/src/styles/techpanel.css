@@ -538,6 +538,11 @@ a { color: var(--blue); text-decoration: none; }
   margin-top: 0;
 }
 
+.input-readonly {
+  opacity: 0.6;
+  cursor: default;
+}
+
 /* Establishment indicator */
 .est-indicator {
   display: inline-block;
