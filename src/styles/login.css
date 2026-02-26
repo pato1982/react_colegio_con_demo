@@ -307,6 +307,62 @@
   color: #d69e2e;
 }
 
+/* Toggle Real / Demo */
+.login-page .login-modo-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.login-page .login-modo-toggle .toggle-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  transition: color 0.2s;
+  user-select: none;
+}
+
+.login-page .login-modo-toggle .toggle-label.activo {
+  color: #1e293b;
+}
+
+.login-page .toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.25s;
+}
+
+.login-page .toggle-switch.real {
+  background: #3b82f6;
+}
+
+.login-page .toggle-switch.demo {
+  background: #f59e0b;
+}
+
+.login-page .toggle-switch .toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.25s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.login-page .toggle-switch.demo .toggle-knob {
+  transform: translateX(16px);
+}
+
 /* ==================== RESPONSIVE ==================== */
 
 /* ========== MODO TABLET (700px a 1100px) ========== */
@@ -356,6 +412,24 @@
 
   .login-page .login-footer {
     padding: 12px 20px 18px;
+  }
+
+  .login-page .login-modo-toggle .toggle-label {
+    font-size: 10px;
+  }
+
+  .login-page .toggle-switch {
+    width: 32px;
+    height: 18px;
+  }
+
+  .login-page .toggle-switch .toggle-knob {
+    width: 14px;
+    height: 14px;
+  }
+
+  .login-page .toggle-switch.demo .toggle-knob {
+    transform: translateX(14px);
   }
 
   /* Formularios consistentes en movil */

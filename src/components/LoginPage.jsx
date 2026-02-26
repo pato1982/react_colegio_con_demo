@@ -10,6 +10,7 @@ function LoginPage({ onVolver, onLoginExitoso }) {
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [error, setError] = useState('');
   const [tipoSeleccionado, setTipoSeleccionado] = useState(null);
+  const [modoDemo, setModoDemo] = useState(true);
   const [cargando, setCargando] = useState(false);
   const [recordarSesion, setRecordarSesion] = useState(false);
 
@@ -19,24 +20,31 @@ function LoginPage({ onVolver, onLoginExitoso }) {
     setError('');
   };
 
+  const demoCreds = {
+    administrador: { email: 'admin@demo.com', pass: '123456' },
+    docente: { email: 'docente@demo.com', pass: '123456' },
+    apoderado: { email: 'apoderado@demo.com', pass: '123456' }
+  };
+
   const seleccionarTipo = (tipo) => {
     setTipoSeleccionado(tipo);
     setError('');
 
-    // Autollenado de credenciales Demo (Solicitado por usuario)
-    const demoCreds = {
-      administrador: { email: 'admin@demo.com', pass: '123456' },
-      docente: { email: 'docente@demo.com', pass: '123456' },
-      apoderado: { email: 'apoderado@demo.com', pass: '123456' }
-    };
-
-    if (demoCreds[tipo]) {
-      setFormData({
-        email: demoCreds[tipo].email,
-        password: demoCreds[tipo].pass
-      });
+    if (modoDemo && demoCreds[tipo]) {
+      setFormData({ email: demoCreds[tipo].email, password: demoCreds[tipo].pass });
     } else {
       setFormData({ email: '', password: '' });
+    }
+  };
+
+  const toggleModoDemo = (nuevoModo) => {
+    setModoDemo(nuevoModo);
+    if (!nuevoModo) {
+      // Pasó a Real → limpiar campos
+      setFormData({ email: '', password: '' });
+    } else if (tipoSeleccionado && demoCreds[tipoSeleccionado]) {
+      // Pasó a Demo con tipo seleccionado → autollenar
+      setFormData({ email: demoCreds[tipoSeleccionado].email, password: demoCreds[tipoSeleccionado].pass });
     }
   };
 
@@ -171,6 +179,20 @@ function LoginPage({ onVolver, onLoginExitoso }) {
                   {error}
                 </div>
               )}
+
+              {/* Toggle Real / Demo */}
+              <div className="login-modo-toggle">
+                <span className={`toggle-label ${!modoDemo ? 'activo' : ''}`}>Real</span>
+                <button
+                  type="button"
+                  className={`toggle-switch ${modoDemo ? 'demo' : 'real'}`}
+                  onClick={() => toggleModoDemo(!modoDemo)}
+                  aria-label={modoDemo ? 'Cambiar a modo Real' : 'Cambiar a modo Demo'}
+                >
+                  <span className="toggle-knob" />
+                </button>
+                <span className={`toggle-label ${modoDemo ? 'activo' : ''}`}>Demo</span>
+              </div>
 
               {/* Botones de seleccion de tipo */}
               <div className="login-tipo-btns">
