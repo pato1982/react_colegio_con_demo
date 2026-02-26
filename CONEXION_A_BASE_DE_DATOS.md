@@ -923,3 +923,40 @@ Todas correspondían a un sistema de monetización/SaaS que nunca se implementó
 - Push vía git (`git push origin master`)
 - Pull en servidor + `npm run build` + `pm2 restart colegio-backend`
 - Tablas eliminadas directamente en BD del servidor con `SET FOREIGN_KEY_CHECKS = 0`
+
+---
+
+## Sesión 25/02/2026 (3) — Limpieza archivos BD + regenerar documentación tablas
+
+### Archivos eliminados del proyecto (11)
+
+Se verificó exhaustivamente que ninguno estaba siendo usado por código en producción (sin require, import, fs.read, ni referencia en package.json, PM2 o Vite).
+
+**Archivos de datos/estructura:**
+- `estructuras_tb.sql` — dump antiguo de estructuras
+- `server/db_structure_analysis.json` — análisis JSON de 7286 líneas
+
+**Scripts de utilidad (one-time, ya ejecutados):**
+- `server/analyze_db_structures.js`
+- `server/check_db_schema.js`
+- `server/check_schema_matriculas.js`
+- `server/consolidar_schema.js`
+- `fix_mysql_schema.ps1`
+- `comparar_tablas.js`
+- `generar_doc_db.js`
+- `migrar_sql_a_doc.js`
+
+**Total eliminado:** ~10.150 líneas de código/datos muertos.
+
+### Regeneración de `docs/TABLAS_BASE_DATOS.md`
+
+Se reemplazó el contenido completo del archivo con las estructuras actualizadas:
+- Extraído desde BD de producción via `mysqldump --no-data portal_estudiantil`
+- 43 tablas con CREATE TABLE limpio (sin AUTO_INCREMENT values ni boilerplate mysqldump)
+- Incluye: índice descriptivo, FK, índices compuestos, CHECK constraints, COMMENTs
+- Sección final con registro de las 11 tablas eliminadas y sus motivos
+- Nota sobre FK huérfana en `tb_documentos_matricula` → `tb_documentos_requeridos` (eliminada)
+
+### Commit y deploy
+- Commit: `acf9cfb` — "Limpiar archivos BD huérfanos y regenerar docs/TABLAS_BASE_DATOS.md"
+- Push: `git push origin master`
