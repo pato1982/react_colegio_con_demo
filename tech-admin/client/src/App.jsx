@@ -4,6 +4,7 @@ import { isAuthenticated } from './api'
 import Login from './pages/Login'
 import Sidebar from './components/Sidebar'
 import RegistroAdmin from './pages/RegistroAdmin'
+import RegistroDocente from './pages/RegistroDocente'
 
 function Layout({ children, onLogout }) {
   return (
@@ -36,7 +37,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/registros/administrador" replace />} />
         <Route path="/registros/administrador" element={<RegistroAdmin />} />
-        <Route path="/registros/docente" element={<Placeholder title="Registros — Docente" />} />
+        <Route path="/registros/docente" element={<RegistroDocente />} />
         <Route path="/registros/alumno" element={<Placeholder title="Registros — Alumno" />} />
         <Route path="/registros/apoderado" element={<Placeholder title="Registros — Apoderado" />} />
         <Route path="*" element={<Navigate to="/registros/administrador" replace />} />

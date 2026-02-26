@@ -960,3 +960,60 @@ Se reemplazó el contenido completo del archivo con las estructuras actualizadas
 ### Commit y deploy
 - Commit: `acf9cfb` — "Limpiar archivos BD huérfanos y regenerar docs/TABLAS_BASE_DATOS.md"
 - Push: `git push origin master`
+
+---
+
+## Sesión 26/02/2026 — Toggle Real/Demo en Login
+
+### Problema
+Los botones de tipo usuario (Admin, Docente, Apoderado) en el login siempre autollenaban credenciales demo. No había forma de usar el login con credenciales reales sin borrar manualmente los campos.
+
+### Solución implementada
+Toggle pill "Real / Demo" encima de los botones de tipo usuario:
+- **Modo Demo** (default, naranja): click en tipo → autollena credenciales demo
+- **Modo Real** (azul): click en tipo → campos quedan vacíos para login real
+- Cambiar a Real limpia campos automáticamente
+- Cambiar a Demo con tipo ya seleccionado → autollena
+
+### Archivos modificados
+- `src/components/LoginPage.jsx` — estado `modoDemo`, lógica `toggleModoDemo()`, JSX del toggle
+- `src/styles/login.css` — estilos toggle pill compacto (36x20px desktop, 32x18px mobile)
+
+### Commit y deploy
+- Commit: `69c37fc` — "Toggle Real/Demo en login: elegir entre credenciales demo o campos vacíos"
+- Push: `git push origin master`
+- Deploy: archivos subidos vía SCP + `npm run build` + `pm2 restart colegio-backend`
+
+---
+
+## Sesión 26/02/2026 (2) — Sub-pestaña Docente en TechPanel
+
+### Funcionalidad implementada
+Pre-registro de docentes desde TechPanel (`/tech/` → Registros → Docente), con dos pestañas: "Agregar Docente" y "Modificar Docente" (placeholder).
+
+### Flujo "Agregar Docente"
+1. Seleccionar establecimiento (carga lista desde BD)
+2. Llenar datos: nombres*, apellidos*, RUT* (auto-formateado), teléfono, email
+3. Al seleccionar establecimiento se cargan sus asignaturas como checkboxes (grid 4 columnas)
+4. Click "Confirmar pre registro" → crea fila en `tb_preregistro_docentes` + asignaturas en `tb_preregistro_docente_asignatura`
+5. Si el RUT ya existe en `tb_docentes` → error (se manejará desde pestaña "Modificar" futura)
+6. Si ya tiene pre-registro activo para ese establecimiento → error
+
+### Cuando el docente se registra (flujo existente en plataforma)
+- `tb_preregistro_docentes` → `tb_usuarios` + `tb_docentes` + `tb_docente_establecimiento`
+- `tb_preregistro_docente_asignatura` → `tb_docente_asignatura`
+- Pre-registro se marca como `usado = 1`
+
+### Archivos nuevos
+- `tech-admin/client/src/pages/RegistroDocente.jsx` — componente con pestañas Agregar/Modificar, formulario con select establecimiento, campos docente, checkboxes asignaturas
+
+### Archivos modificados
+- `tech-admin/routes/registro.js` — 3 endpoints: `GET /establecimientos`, `GET /asignaturas/:id`, `POST /docente-tech`
+- `tech-admin/client/src/App.jsx` — import RegistroDocente, reemplazo placeholder
+- `tech-admin/client/src/styles/techpanel.css` — `.asignaturas-grid-tech` (grid 4 columnas)
+
+### Fix aplicado durante deploy
+- `tipo_usuario` en `tb_log_actividades` es `enum('administrador','docente','apoderado','sistema')` — se usó `'sistema'` en vez de `'techpanel'`
+
+### Commit y deploy
+- Deploy: archivos vía SCP + `npm run build` + `pm2 restart tech-admin`

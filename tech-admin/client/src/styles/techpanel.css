@@ -682,6 +682,14 @@ a { color: var(--blue); text-decoration: none; }
   color: var(--text-primary);
 }
 
+/* Asignaturas grid (docente registration) */
+.asignaturas-grid-tech {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   :root { --sidebar-width: 60px; }

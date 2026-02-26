@@ -241,4 +241,117 @@ router.post('/registro/cambiar-admin', async (req, res) => {
   }
 });
 
+// GET /api/registro/establecimientos — Lista de establecimientos activos
+router.get('/registro/establecimientos', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, nombre FROM tb_establecimientos WHERE activo = 1 ORDER BY nombre'
+    );
+    res.json({ establecimientos: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/registro/asignaturas/:establecimientoId — Asignaturas de un establecimiento
+router.get('/registro/asignaturas/:establecimientoId', async (req, res) => {
+  const { establecimientoId } = req.params;
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, nombre FROM tb_asignaturas WHERE establecimiento_id = ? AND activo = 1 ORDER BY nombre',
+      [establecimientoId]
+    );
+    res.json({ asignaturas: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/registro/docente-tech — Pre-registrar docente desde TechPanel
+router.post('/registro/docente-tech', async (req, res) => {
+  const { establecimiento_id, rut, nombres, apellidos, email, telefono, asignaturas = [] } = req.body;
+
+  if (!establecimiento_id || !rut || !nombres || !apellidos) {
+    return res.status(400).json({ error: 'Establecimiento, RUT, nombres y apellidos son requeridos' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Verificar si el docente ya existe en tb_docentes (ya tiene cuenta)
+    const [docenteExistente] = await connection.query(
+      'SELECT id FROM tb_docentes WHERE UPPER(rut) = UPPER(?) AND activo = 1',
+      [rut]
+    );
+
+    if (docenteExistente.length > 0) {
+      await connection.rollback();
+      return res.status(400).json({ error: 'Este docente ya tiene cuenta en el sistema. Usa la pestaña de modificación para cambios.' });
+    }
+
+    // Verificar si ya está en preregistro para este establecimiento
+    const [enPreregistro] = await connection.query(
+      'SELECT id FROM tb_preregistro_docentes WHERE UPPER(rut) = UPPER(?) AND establecimiento_id = ? AND activo = 1 AND usado = 0',
+      [rut, establecimiento_id]
+    );
+
+    if (enPreregistro.length > 0) {
+      await connection.rollback();
+      return res.status(400).json({ error: 'Este docente ya está en espera de registro para este establecimiento' });
+    }
+
+    // Obtener nombres de asignaturas para campo especialidad (texto informativo)
+    let especialidadTexto = null;
+    if (asignaturas.length > 0) {
+      const [nombresAsig] = await connection.query(
+        'SELECT nombre FROM tb_asignaturas WHERE id IN (?) AND activo = 1',
+        [asignaturas]
+      );
+      especialidadTexto = nombresAsig.map(a => a.nombre).join(', ');
+    }
+
+    // Crear preregistro
+    const [resultPreregistro] = await connection.query(
+      `INSERT INTO tb_preregistro_docentes
+       (establecimiento_id, rut, nombres, apellidos, email, especialidad, activo, usado)
+       VALUES (?, ?, ?, ?, ?, ?, 1, 0)`,
+      [establecimiento_id, rut, nombres, apellidos, email || null, especialidadTexto]
+    );
+
+    const preregistroId = resultPreregistro.insertId;
+
+    // Guardar asignaturas en tb_preregistro_docente_asignatura
+    for (const asignaturaId of asignaturas) {
+      await connection.query(
+        'INSERT INTO tb_preregistro_docente_asignatura (preregistro_docente_id, asignatura_id) VALUES (?, ?)',
+        [preregistroId, asignaturaId]
+      );
+    }
+
+    // Log en tb_log_actividades
+    await connection.query(
+      `INSERT INTO tb_log_actividades
+       (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+        entidad_tipo, entidad_id, datos_anteriores, datos_nuevos, establecimiento_id)
+       VALUES (NULL, 'sistema', 'TechPanel', 'crear', 'docentes', ?, 'docente', ?, NULL, ?, ?)`,
+      [
+        `Docente pre-registrado desde TechPanel: ${nombres} ${apellidos} (RUT: ${rut})`,
+        0,
+        JSON.stringify({ rut, nombres, apellidos, email, telefono, asignaturas }),
+        establecimiento_id
+      ]
+    );
+
+    await connection.commit();
+    res.json({ ok: true, message: 'Docente pre-registrado correctamente. Podrá registrarse en el sistema con su RUT.' });
+
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
 module.exports = router;
