@@ -1016,4 +1016,43 @@ Pre-registro de docentes desde TechPanel (`/tech/` → Registros → Docente), c
 - `tipo_usuario` en `tb_log_actividades` es `enum('administrador','docente','apoderado','sistema')` — se usó `'sistema'` en vez de `'techpanel'`
 
 ### Commit y deploy
+- Commit: `9687920` — "Sub-pestaña Docente en TechPanel: pre-registro con asignaturas"
+- Push: `git push origin master`
 - Deploy: archivos vía SCP + `npm run build` + `pm2 restart tech-admin`
+
+## Sesión 27/02/2026 — Modificar Docente editable + eliminar docente + cubo bienvenida
+
+### Funcionalidad "Modificar Docente" (completada)
+La pestaña Modificar Docente ahora es totalmente funcional:
+
+1. **Datos del docente**: RUT con botón Buscar integrado al lado, Nombres, Apellidos, Email, Teléfono, Cargo (readonly), Establecimiento (readonly) + botón "Guardar datos"
+2. **Asignaturas**: checkboxes editables de todas las asignaturas del establecimiento + botón "Guardar asignaturas"
+3. **Cursos asignados**: tabla interactiva (filas=cursos, columnas=asignaturas del docente) con checkboxes para asignar/desasignar + botón "Guardar cursos" (solo se habilita con cambios pendientes)
+4. **Eliminar docente**: botón rojo al final con confirmación popup (nombre + establecimiento). Soft delete en cadena: tb_docentes, tb_usuarios, tb_docente_establecimiento, tb_docente_asignatura, tb_asignaciones
+
+### Cubo 3D de bienvenida
+- Al cargar/recargar TechPanel siempre muestra cubo giratorio con letra "E" en 6 caras
+- Sidebar inicia con "Registros" cerrado
+- Contenido solo aparece al navegar desde el sidebar
+- Cubo 220px, centrado en el área de contenido, colores del tema
+
+### Endpoints nuevos en `tech-admin/routes/registro.js`
+- `GET /registro/cursos/:establecimientoId` — cursos de un establecimiento
+- `POST /registro/docente-asignacion` — crear asignaciones (docente + curso + asignaturas[])
+- `DELETE /registro/docente-asignacion/:id` — eliminar asignación (soft delete)
+- `DELETE /registro/docente/:id` — eliminar docente completo (soft delete en cadena)
+
+### Endpoint modificado
+- `GET /registro/docente-by-rut` — ahora incluye `asignacion_id` y `asignatura_id` en cada curso
+
+### Archivos modificados
+- `tech-admin/routes/registro.js` — 4 endpoints nuevos + 1 modificado
+- `tech-admin/client/src/pages/RegistroDocente.jsx` — Modificar Docente completo
+- `tech-admin/client/src/styles/techpanel.css` — tabla cursos-asignaturas + cubo 3D
+- `tech-admin/client/src/App.jsx` — WelcomeCube + redirect a / al montar
+- `tech-admin/client/src/components/Sidebar.jsx` — Registros cerrado por defecto
+
+### Commit y deploy
+- Commit: `7899284` — "Modificar Docente: cursos editables, eliminar docente, cubo bienvenida"
+- Push: `git push origin master`
+- Deploy: archivos vía SCP + `vite build` + `pm2 restart tech-admin`
