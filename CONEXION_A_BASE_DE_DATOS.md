@@ -1056,3 +1056,84 @@ La pestaña Modificar Docente ahora es totalmente funcional:
 - Commit: `7899284` — "Modificar Docente: cursos editables, eliminar docente, cubo bienvenida"
 - Push: `git push origin master`
 - Deploy: archivos vía SCP + `vite build` + `pm2 restart tech-admin`
+
+---
+
+## Sesión 27/02/2026 (2) — Refactorizar Cambiar Admin + Página Alumno + Flujo Apoderado sin usuario
+
+### Resumen
+1. Refactorización pestaña "Cambiar administrador" al estilo "Modificar Docente"
+2. Quitar colores activos del sidebar de TechPanel
+3. Crear página Alumno con pestañas "Agregar alumno" / "Modificar alumno"
+4. Formulario "Agregar alumno" con todos los campos de matrícula
+5. Endpoint `POST /registro/alumno` conectado a BD
+6. Cambio de flujo: apoderado se crea SIN usuario (usuario_id = NULL)
+
+### 1. Refactorizar "Cambiar administrador" (RegistroAdmin.jsx)
+- Eliminada sección separada de búsqueda por RUT
+- Campo RUT con botón "Buscar" integrado dentro de sección "Administrador actual" (display: flex + gap)
+- Agregado `onKeyDown` con Enter para buscar
+- Las 3 secciones (Admin, Establecimiento, Reemplazar) ahora se renderizan **siempre** — campos `disabled={!adminActual}` con `placeholder="—"`
+- Handlers inline extraídos a funciones nombradas: `handleBuscarAdmin`, `handleGuardarAdmin`, `handleGuardarEstablecimiento`, `handleConfirmarCambio`
+- Botones disabled sin admin buscado
+
+### 2. Sidebar sin colores activos
+- Eliminada clase `.active` del botón "Registros" (padre expandible)
+- Eliminada clase `.active` de los sub-links (Administrador, Docente, Alumno, Apoderado)
+- Solo conservan hover gris al pasar el mouse
+
+### 3. Página Alumno (RegistroAlumno.jsx) — NUEVA
+- Dos pestañas: "Agregar alumno" y "Modificar alumno" (modificar pendiente)
+- Pestaña "Agregar alumno" con 5 secciones:
+  - **Selección académica:** dropdown de establecimientos (carga al montar via `GET /registro/establecimientos`), dropdown de cursos (carga al seleccionar establecimiento via `GET /registro/cursos/:id`), año académico
+  - **Datos del alumno:** RUT, nombres, apellidos, fecha nacimiento, sexo (select), nacionalidad, dirección, comuna, ciudad, teléfono, email
+  - **Datos del apoderado:** RUT, nombres, apellidos, parentesco (select), email, teléfono, toggle "misma dirección del alumno" (radio Sí/No), dirección alternativa
+  - **Salud y emergencias:** contacto emergencia nombre/teléfono, alergias, enfermedades crónicas, checkbox NEE con detalle
+  - **Antecedentes académicos:** colegio procedencia, último curso aprobado, promedio anterior, observaciones (textarea), botón "Confirmar matrícula"
+- Todos los campos disabled hasta seleccionar establecimiento
+- App.jsx actualizado: importa `RegistroAlumno`, reemplaza placeholder en ruta `/registros/alumno`
+
+### 4. Endpoint POST /registro/alumno (tech-admin/routes/registro.js)
+Crea matrícula completa en una transacción con 8 pasos:
+1. **Apoderado** — busca por RUT; si existe actualiza datos, si no crea en `tb_apoderados` con `usuario_id = NULL` (sin crear tb_usuarios)
+2. **Periodo matrícula** — busca o crea en `tb_periodos_matricula`
+3. **Alumno** — busca por RUT; si existe actualiza, si no crea nuevo en `tb_alumnos`
+4. **Verifica duplicado** — si ya tiene matrícula activa para ese año, rechaza
+5. **Matrícula** — inserta en `tb_matriculas` (estado: aprobada, tipo: nuevo)
+6. **Relaciones** — `tb_apoderado_alumno`, `tb_alumno_establecimiento`, `tb_apoderado_establecimiento` (con ON DUPLICATE KEY UPDATE)
+7. **Preregistro** — inserta en `tb_preregistro_relaciones` para auto-registro futuro del apoderado
+8. **Notas iniciales** — busca asignaturas del curso en `tb_asignaciones`, crea 1 nota pendiente (`nota = NULL, es_pendiente = 1`) por cada asignatura × trimestre/semestre según modalidad del establecimiento
+
+### 5. Cambio de flujo del apoderado — SIN usuario automático
+
+#### Problema anterior
+Al matricular (admin o TechPanel), se creaba automáticamente `tb_usuarios` + `tb_apoderados` con `usuario_id` vinculado. El apoderado podía entrar al portal de inmediato, pero esto era indeseado.
+
+#### Nuevo flujo
+- **Al matricular** (admin o TechPanel): se crea `tb_apoderados` con `usuario_id = NULL`. No se crea `tb_usuarios`. Se crea `tb_preregistro_relaciones` para auto-registro.
+- **Al auto-registrarse** el apoderado (`POST /registro/apoderado`): ahora busca si ya existe en `tb_apoderados` por RUT. Si existe, actualiza `usuario_id` con el nuevo usuario creado. Si no existe, crea todo nuevo.
+- Las relaciones (`tb_apoderado_alumno`, `tb_apoderado_establecimiento`) usan `ON DUPLICATE KEY UPDATE` para no duplicar.
+
+#### Cambios en BD
+- `ALTER TABLE tb_apoderados MODIFY usuario_id int NULL` — permite apoderados sin cuenta de usuario
+
+#### Impacto
+- **Alumno**: 100% operativo (notas, asistencia, matrícula) independiente del apoderado
+- **Chat**: apoderado NO aparece en contactos hasta registrarse (usa `tb_usuarios.id`)
+- **Comunicados**: se envían por curso, quedan esperando; el apoderado los verá cuando se registre
+- **Relaciones**: `tb_apoderado_alumno`, `tb_apoderado_establecimiento`, `tb_matriculas` usan `apoderado_id` (siempre existe), no `usuario_id`
+
+### Archivos modificados
+- `tech-admin/client/src/pages/RegistroAdmin.jsx` — refactorización "Cambiar administrador"
+- `tech-admin/client/src/pages/RegistroAlumno.jsx` — **NUEVO**, página completa de alumno
+- `tech-admin/client/src/components/Sidebar.jsx` — quitar colores activos
+- `tech-admin/client/src/App.jsx` — importar RegistroAlumno, actualizar ruta
+- `tech-admin/routes/registro.js` — endpoint POST /registro/alumno
+- `server/routes/registro.js` — auto-registro apoderado: detectar existente por RUT
+- `server/routes/matriculas.js` — matrícula admin: apoderado sin usuario
+
+### Deploy
+- Archivos subidos vía SCP
+- `vite build` en tech-admin/client
+- `pm2 restart all`
+- ALTER TABLE ejecutado directamente en BD del servidor

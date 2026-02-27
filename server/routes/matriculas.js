@@ -67,7 +67,7 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Debe ingresar RUT y Nombre del Apoderado' });
         }
 
-        // ─── 1. APODERADO (buscar o crear con usuario) ───
+        // ─── 1. APODERADO (buscar o crear SIN usuario) ───
         let finalApoderadoId;
         const [apoderadosExist] = await connection.query('SELECT id FROM tb_apoderados WHERE rut = ?', [rut_apoderado]);
         if (apoderadosExist.length > 0) {
@@ -81,28 +81,12 @@ router.post('/', async (req, res) => {
                 WHERE id = ?
             `, [nombres_apoderado, apellidos_apoderado, email_apoderado, telefono_apoderado, direccion_apoderado, finalApoderadoId]);
         } else {
-            // Crear usuario para el apoderado
-            const emailAp = email_apoderado || `${rut_apoderado.replace(/\./g, '').replace('-', '')}@sinregistro.cl`;
-            const passTemp = rut_apoderado.replace(/\./g, '').substring(0, 6);
-            const passHash = await bcrypt.hash(passTemp, 10);
-
-            // Verificar si ya existe un usuario con ese email
-            const [usuariosExist] = await connection.query('SELECT id FROM tb_usuarios WHERE email = ?', [emailAp]);
-            let usuarioId;
-            if (usuariosExist.length > 0) {
-                usuarioId = usuariosExist[0].id;
-            } else {
-                const [nuevoUsuario] = await connection.query(`
-                    INSERT INTO tb_usuarios (email, password_hash, tipo_usuario, activo, email_verificado, debe_cambiar_password)
-                    VALUES (?, ?, 'apoderado', 1, 0, 1)
-                `, [emailAp, passHash]);
-                usuarioId = nuevoUsuario.insertId;
-            }
-
+            // Crear apoderado sin cuenta de usuario (usuario_id = NULL)
+            // El usuario se creará cuando el apoderado se registre por su cuenta
             const [nuevoAp] = await connection.query(`
                 INSERT INTO tb_apoderados (usuario_id, rut, nombres, apellidos, email, telefono, direccion, activo)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-            `, [usuarioId, rut_apoderado, nombres_apoderado, apellidos_apoderado || '', email_apoderado || null, telefono_apoderado || null, direccion_apoderado || null]);
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, 1)
+            `, [rut_apoderado, nombres_apoderado, apellidos_apoderado || '', email_apoderado || null, telefono_apoderado || null, direccion_apoderado || null]);
             finalApoderadoId = nuevoAp.insertId;
         }
 

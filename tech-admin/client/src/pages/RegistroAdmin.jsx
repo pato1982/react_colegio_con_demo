@@ -109,6 +109,106 @@ export default function RegistroAdmin() {
     setCodigo(generarCodigo())
   }
 
+  const handleBuscarAdmin = async () => {
+    setMsgCambio(null)
+    setBuscando(true)
+    setAdminActual(null)
+    setEstEditable(null)
+    setCodigoCambio('')
+    setNuevoAdmin({ nombres: '', apellidos: '', rut: '', email: '', telefono: '' })
+    try {
+      const res = await api(`/registro/admin-by-rut?rut=${encodeURIComponent(buscarRut)}`)
+      if (res.error) throw new Error(res.error)
+      setAdminActual(res.admin)
+      setEstEditable({ ...res.establecimiento })
+    } catch (err) {
+      setMsgCambio({ type: 'error', text: err.message })
+    } finally {
+      setBuscando(false)
+    }
+  }
+
+  const handleGuardarAdmin = async () => {
+    setMsgCambio(null)
+    setGuardandoAdmin(true)
+    try {
+      const res = await api(`/registro/admin/${adminActual.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          nombres: adminActual.nombres,
+          apellidos: adminActual.apellidos,
+          email: adminActual.email,
+          telefono: adminActual.telefono
+        })
+      })
+      if (res.error) throw new Error(res.error)
+      setMsgCambio({ type: 'success', text: 'Datos del administrador actualizados' })
+    } catch (err) {
+      setMsgCambio({ type: 'error', text: err.message })
+    } finally {
+      setGuardandoAdmin(false)
+    }
+  }
+
+  const handleGuardarEstablecimiento = async () => {
+    setMsgCambio(null)
+    setGuardandoEst(true)
+    try {
+      const res = await api(`/registro/establecimiento/${estEditable.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          direccion: estEditable.direccion,
+          comuna: estEditable.comuna,
+          region: estEditable.region,
+          telefono: estEditable.telefono,
+          email: estEditable.email
+        })
+      })
+      if (res.error) throw new Error(res.error)
+      setMsgCambio({ type: 'success', text: 'Establecimiento actualizado' })
+    } catch (err) {
+      setMsgCambio({ type: 'error', text: err.message })
+    } finally {
+      setGuardandoEst(false)
+    }
+  }
+
+  const handleConfirmarCambio = async () => {
+    setMsgCambio(null)
+    if (!nuevoAdmin.nombres || !nuevoAdmin.apellidos || !nuevoAdmin.rut || !nuevoAdmin.email) {
+      setMsgCambio({ type: 'error', text: 'Completa todos los campos obligatorios del nuevo administrador' })
+      return
+    }
+    if (!codigoCambio) {
+      setMsgCambio({ type: 'error', text: 'Debes generar un código primero' })
+      return
+    }
+    setLoadingCambio(true)
+    try {
+      const res = await api('/registro/cambiar-admin', {
+        method: 'POST',
+        body: JSON.stringify({
+          admin_anterior_id: adminActual.id,
+          establecimiento_id: estEditable.id,
+          rut: nuevoAdmin.rut,
+          nombres: nuevoAdmin.nombres,
+          apellidos: nuevoAdmin.apellidos,
+          email: nuevoAdmin.email,
+          telefono: nuevoAdmin.telefono,
+          codigo: codigoCambio.replace(/[\s\-]/g, '')
+        })
+      })
+      if (res.error) throw new Error(res.error)
+      setMsgCambio({ type: 'success', text: res.message || 'Pre-registro de cambio creado con éxito' })
+      setNuevoAdmin({ nombres: '', apellidos: '', rut: '', email: '', telefono: '' })
+      setCodigoCambio('')
+    } catch (err) {
+      setMsgCambio({ type: 'error', text: err.message })
+    } finally {
+      setLoadingCambio(false)
+    }
+  }
+
   const handleSubmit = async e => {
     e.preventDefault()
     setMsg(null)
@@ -325,253 +425,152 @@ export default function RegistroAdmin() {
               <div className={`registro-msg ${msgCambio.type}`}>{msgCambio.text}</div>
             )}
 
-            {/* Búsqueda por RUT */}
-            <div className="form-row-3">
-              <div className="form-group" style={{ flex: 2 }}>
-                <label>RUT del administrador actual</label>
-                <input
-                  type="text"
-                  value={buscarRut}
-                  onChange={e => setBuscarRut(formatRut(e.target.value))}
-                  placeholder="12.345.678-9"
-                  maxLength="12"
-                />
+            {/* Administrador actual */}
+            <div className="estructura-section">
+              <label className="estructura-title">Administrador actual</label>
+              <div className="form-row-4">
+                <div className="form-group">
+                  <label>RUT</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      value={buscarRut}
+                      onChange={e => setBuscarRut(formatRut(e.target.value))}
+                      onKeyDown={e => { if (e.key === 'Enter' && buscarRut) handleBuscarAdmin() }}
+                      placeholder="12.345.678-9"
+                      maxLength="12"
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-blue"
+                      disabled={buscando || !buscarRut}
+                      onClick={handleBuscarAdmin}
+                    >
+                      {buscando ? 'Buscando...' : 'Buscar'}
+                    </button>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Nombres</label>
+                  <input type="text" value={adminActual ? adminActual.nombres : ''} onChange={e => setAdminActual(s => ({ ...s, nombres: e.target.value }))} disabled={!adminActual} placeholder="—" />
+                </div>
+                <div className="form-group">
+                  <label>Apellidos</label>
+                  <input type="text" value={adminActual ? adminActual.apellidos : ''} onChange={e => setAdminActual(s => ({ ...s, apellidos: e.target.value }))} disabled={!adminActual} placeholder="—" />
+                </div>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input type="email" value={adminActual ? adminActual.email : ''} onChange={e => setAdminActual(s => ({ ...s, email: e.target.value }))} disabled={!adminActual} placeholder="—" />
+                </div>
               </div>
-              <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
-                <button
-                  type="button"
-                  className="btn btn-blue"
-                  disabled={buscando || !buscarRut}
-                  onClick={async () => {
-                    setMsgCambio(null)
-                    setBuscando(true)
-                    setAdminActual(null)
-                    setEstEditable(null)
-                    setCodigoCambio('')
-                    setNuevoAdmin({ nombres: '', apellidos: '', rut: '', email: '', telefono: '' })
-                    try {
-                      const res = await api(`/registro/admin-by-rut?rut=${encodeURIComponent(buscarRut)}`)
-                      if (res.error) throw new Error(res.error)
-                      setAdminActual(res.admin)
-                      setEstEditable({ ...res.establecimiento })
-                    } catch (err) {
-                      setMsgCambio({ type: 'error', text: err.message })
-                    } finally {
-                      setBuscando(false)
-                    }
-                  }}
-                >
-                  {buscando ? 'Buscando...' : 'Buscar'}
-                </button>
+              <div className="form-row-4">
+                <div className="form-group">
+                  <label>Teléfono</label>
+                  <input type="tel" value={adminActual ? (adminActual.telefono || '') : ''} onChange={e => setAdminActual(s => ({ ...s, telefono: e.target.value }))} disabled={!adminActual} placeholder="—" />
+                </div>
+                <div className="form-group" />
+                <div className="form-group" />
+                <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="btn btn-blue"
+                    disabled={!adminActual || guardandoAdmin}
+                    onClick={handleGuardarAdmin}
+                  >
+                    {guardandoAdmin ? 'Guardando...' : 'Guardar datos'}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {adminActual && (
-              <>
-                {/* Datos admin actual (editable excepto RUT) */}
-                <div className="estructura-section">
-                  <label className="estructura-title">Administrador actual</label>
-                  <div className="form-row-4">
-                    <div className="form-group">
-                      <label>Nombres</label>
-                      <input type="text" value={adminActual.nombres} onChange={e => setAdminActual(s => ({ ...s, nombres: e.target.value }))} />
-                    </div>
-                    <div className="form-group">
-                      <label>Apellidos</label>
-                      <input type="text" value={adminActual.apellidos} onChange={e => setAdminActual(s => ({ ...s, apellidos: e.target.value }))} />
-                    </div>
-                    <div className="form-group">
-                      <label>RUT</label>
-                      <input type="text" value={adminActual.rut} readOnly className="input-readonly" />
-                    </div>
-                    <div className="form-group">
-                      <label>Email</label>
-                      <input type="email" value={adminActual.email} onChange={e => setAdminActual(s => ({ ...s, email: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="form-row-4">
-                    <div className="form-group">
-                      <label>Teléfono</label>
-                      <input type="tel" value={adminActual.telefono || ''} onChange={e => setAdminActual(s => ({ ...s, telefono: e.target.value }))} />
-                    </div>
-                    <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
-                      <button
-                        type="button"
-                        className="btn btn-blue"
-                        disabled={guardandoAdmin}
-                        onClick={async () => {
-                          setMsgCambio(null)
-                          setGuardandoAdmin(true)
-                          try {
-                            const res = await api(`/registro/admin/${adminActual.id}`, {
-                              method: 'PUT',
-                              body: JSON.stringify({
-                                nombres: adminActual.nombres,
-                                apellidos: adminActual.apellidos,
-                                email: adminActual.email,
-                                telefono: adminActual.telefono
-                              })
-                            })
-                            if (res.error) throw new Error(res.error)
-                            setMsgCambio({ type: 'success', text: 'Datos del administrador actualizados' })
-                          } catch (err) {
-                            setMsgCambio({ type: 'error', text: err.message })
-                          } finally {
-                            setGuardandoAdmin(false)
-                          }
-                        }}
-                      >
-                        {guardandoAdmin ? 'Guardando...' : 'Guardar datos admin'}
-                      </button>
-                    </div>
-                  </div>
+            {/* Establecimiento */}
+            <div className="estructura-section">
+              <label className="estructura-title">Establecimiento</label>
+              <div className="form-row-3">
+                <div className="form-group">
+                  <label>Nombre</label>
+                  <input type="text" value={estEditable ? estEditable.nombre : ''} readOnly className="input-readonly" disabled={!adminActual} placeholder="—" />
                 </div>
-
-                {/* Datos establecimiento (editable) */}
-                <div className="estructura-section">
-                  <label className="estructura-title">Establecimiento</label>
-                  <div className="form-row-3">
-                    <div className="form-group">
-                      <label>Nombre</label>
-                      <input type="text" value={estEditable.nombre} readOnly className="input-readonly" />
-                    </div>
-                    <div className="form-group">
-                      <label>Dirección</label>
-                      <input type="text" value={estEditable.direccion || ''} onChange={e => setEstEditable(s => ({ ...s, direccion: e.target.value }))} />
-                    </div>
-                    <div className="form-group">
-                      <label>Comuna</label>
-                      <input type="text" value={estEditable.comuna || ''} onChange={e => setEstEditable(s => ({ ...s, comuna: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="form-row-4">
-                    <div className="form-group">
-                      <label>Región</label>
-                      <input type="text" value={estEditable.region || ''} onChange={e => setEstEditable(s => ({ ...s, region: e.target.value }))} />
-                    </div>
-                    <div className="form-group">
-                      <label>Teléfono</label>
-                      <input type="tel" value={estEditable.telefono || ''} onChange={e => setEstEditable(s => ({ ...s, telefono: e.target.value }))} />
-                    </div>
-                    <div className="form-group">
-                      <label>Email</label>
-                      <input type="email" value={estEditable.email || ''} onChange={e => setEstEditable(s => ({ ...s, email: e.target.value }))} />
-                    </div>
-                    <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
-                      <button
-                        type="button"
-                        className="btn btn-blue"
-                        disabled={guardandoEst}
-                        onClick={async () => {
-                          setMsgCambio(null)
-                          setGuardandoEst(true)
-                          try {
-                            const res = await api(`/registro/establecimiento/${estEditable.id}`, {
-                              method: 'PUT',
-                              body: JSON.stringify({
-                                direccion: estEditable.direccion,
-                                comuna: estEditable.comuna,
-                                region: estEditable.region,
-                                telefono: estEditable.telefono,
-                                email: estEditable.email
-                              })
-                            })
-                            if (res.error) throw new Error(res.error)
-                            setMsgCambio({ type: 'success', text: 'Establecimiento actualizado' })
-                          } catch (err) {
-                            setMsgCambio({ type: 'error', text: err.message })
-                          } finally {
-                            setGuardandoEst(false)
-                          }
-                        }}
-                      >
-                        {guardandoEst ? 'Guardando...' : 'Guardar cambios'}
-                      </button>
-                    </div>
-                  </div>
+                <div className="form-group">
+                  <label>Dirección</label>
+                  <input type="text" value={estEditable ? (estEditable.direccion || '') : ''} onChange={e => setEstEditable(s => ({ ...s, direccion: e.target.value }))} disabled={!adminActual} placeholder="—" />
                 </div>
-
-                {/* Reemplazar administrador */}
-                <div className="estructura-section">
-                  <label className="estructura-title">Reemplazar administrador</label>
-                  <div className="form-row-4">
-                    <div className="form-group">
-                      <label>Nombres *</label>
-                      <input type="text" value={nuevoAdmin.nombres} onChange={e => setNuevoAdmin(s => ({ ...s, nombres: e.target.value }))} placeholder="Ej: María José" />
-                    </div>
-                    <div className="form-group">
-                      <label>Apellidos *</label>
-                      <input type="text" value={nuevoAdmin.apellidos} onChange={e => setNuevoAdmin(s => ({ ...s, apellidos: e.target.value }))} placeholder="Ej: García Muñoz" />
-                    </div>
-                    <div className="form-group">
-                      <label>RUT *</label>
-                      <input type="text" value={nuevoAdmin.rut} onChange={e => setNuevoAdmin(s => ({ ...s, rut: formatRut(e.target.value) }))} placeholder="12.345.678-9" maxLength="12" />
-                    </div>
-                    <div className="form-group">
-                      <label>Teléfono</label>
-                      <input type="tel" value={nuevoAdmin.telefono} onChange={e => setNuevoAdmin(s => ({ ...s, telefono: e.target.value }))} placeholder="+56 9 1234 5678" />
-                    </div>
-                  </div>
-                  <div className="form-row-3">
-                    <div className="form-group">
-                      <label>Email *</label>
-                      <input type="email" value={nuevoAdmin.email} onChange={e => setNuevoAdmin(s => ({ ...s, email: e.target.value }))} placeholder="ejemplo@correo.cl" />
-                    </div>
-                  </div>
-
-                  <div className="codigo-row">
-                    <button type="button" className="btn btn-blue" onClick={() => setCodigoCambio(generarCodigo())} disabled={!!codigoCambio}>
-                      {codigoCambio ? 'Código generado' : 'Generar código'}
-                    </button>
-                    {codigoCambio && (
-                      <span className="codigo-display">{codigoCambio}</span>
-                    )}
-                    <button
-                      type="button"
-                      className="login-btn codigo-submit"
-                      disabled={loadingCambio}
-                      onClick={async () => {
-                        setMsgCambio(null)
-                        if (!nuevoAdmin.nombres || !nuevoAdmin.apellidos || !nuevoAdmin.rut || !nuevoAdmin.email) {
-                          setMsgCambio({ type: 'error', text: 'Completa todos los campos obligatorios del nuevo administrador' })
-                          return
-                        }
-                        if (!codigoCambio) {
-                          setMsgCambio({ type: 'error', text: 'Debes generar un código primero' })
-                          return
-                        }
-                        setLoadingCambio(true)
-                        try {
-                          const res = await api('/registro/cambiar-admin', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                              admin_anterior_id: adminActual.id,
-                              establecimiento_id: estEditable.id,
-                              rut: nuevoAdmin.rut,
-                              nombres: nuevoAdmin.nombres,
-                              apellidos: nuevoAdmin.apellidos,
-                              email: nuevoAdmin.email,
-                              telefono: nuevoAdmin.telefono,
-                              codigo: codigoCambio.replace(/[\s\-]/g, '')
-                            })
-                          })
-                          if (res.error) throw new Error(res.error)
-                          setMsgCambio({ type: 'success', text: res.message || 'Pre-registro de cambio creado con éxito' })
-                          setNuevoAdmin({ nombres: '', apellidos: '', rut: '', email: '', telefono: '' })
-                          setCodigoCambio('')
-                        } catch (err) {
-                          setMsgCambio({ type: 'error', text: err.message })
-                        } finally {
-                          setLoadingCambio(false)
-                        }
-                      }}
-                    >
-                      {loadingCambio ? 'Procesando...' : 'Confirmar cambio'}
-                    </button>
-                  </div>
+                <div className="form-group">
+                  <label>Comuna</label>
+                  <input type="text" value={estEditable ? (estEditable.comuna || '') : ''} onChange={e => setEstEditable(s => ({ ...s, comuna: e.target.value }))} disabled={!adminActual} placeholder="—" />
                 </div>
-              </>
-            )}
+              </div>
+              <div className="form-row-4">
+                <div className="form-group">
+                  <label>Región</label>
+                  <input type="text" value={estEditable ? (estEditable.region || '') : ''} onChange={e => setEstEditable(s => ({ ...s, region: e.target.value }))} disabled={!adminActual} placeholder="—" />
+                </div>
+                <div className="form-group">
+                  <label>Teléfono</label>
+                  <input type="tel" value={estEditable ? (estEditable.telefono || '') : ''} onChange={e => setEstEditable(s => ({ ...s, telefono: e.target.value }))} disabled={!adminActual} placeholder="—" />
+                </div>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input type="email" value={estEditable ? (estEditable.email || '') : ''} onChange={e => setEstEditable(s => ({ ...s, email: e.target.value }))} disabled={!adminActual} placeholder="—" />
+                </div>
+                <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="btn btn-blue"
+                    disabled={!adminActual || guardandoEst}
+                    onClick={handleGuardarEstablecimiento}
+                  >
+                    {guardandoEst ? 'Guardando...' : 'Guardar cambios'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Reemplazar administrador */}
+            <div className="estructura-section">
+              <label className="estructura-title">Reemplazar administrador</label>
+              <div className="form-row-4">
+                <div className="form-group">
+                  <label>Nombres *</label>
+                  <input type="text" value={nuevoAdmin.nombres} onChange={e => setNuevoAdmin(s => ({ ...s, nombres: e.target.value }))} disabled={!adminActual} placeholder={adminActual ? 'Ej: María José' : '—'} />
+                </div>
+                <div className="form-group">
+                  <label>Apellidos *</label>
+                  <input type="text" value={nuevoAdmin.apellidos} onChange={e => setNuevoAdmin(s => ({ ...s, apellidos: e.target.value }))} disabled={!adminActual} placeholder={adminActual ? 'Ej: García Muñoz' : '—'} />
+                </div>
+                <div className="form-group">
+                  <label>RUT *</label>
+                  <input type="text" value={nuevoAdmin.rut} onChange={e => setNuevoAdmin(s => ({ ...s, rut: formatRut(e.target.value) }))} disabled={!adminActual} placeholder={adminActual ? '12.345.678-9' : '—'} maxLength="12" />
+                </div>
+                <div className="form-group">
+                  <label>Teléfono</label>
+                  <input type="tel" value={nuevoAdmin.telefono} onChange={e => setNuevoAdmin(s => ({ ...s, telefono: e.target.value }))} disabled={!adminActual} placeholder={adminActual ? '+56 9 1234 5678' : '—'} />
+                </div>
+              </div>
+              <div className="form-row-3">
+                <div className="form-group">
+                  <label>Email *</label>
+                  <input type="email" value={nuevoAdmin.email} onChange={e => setNuevoAdmin(s => ({ ...s, email: e.target.value }))} disabled={!adminActual} placeholder={adminActual ? 'ejemplo@correo.cl' : '—'} />
+                </div>
+              </div>
+              <div className="codigo-row">
+                <button type="button" className="btn btn-blue" onClick={() => setCodigoCambio(generarCodigo())} disabled={!adminActual || !!codigoCambio}>
+                  {codigoCambio ? 'Código generado' : 'Generar código'}
+                </button>
+                {codigoCambio && (
+                  <span className="codigo-display">{codigoCambio}</span>
+                )}
+                <button
+                  type="button"
+                  className="login-btn codigo-submit"
+                  disabled={!adminActual || loadingCambio}
+                  onClick={handleConfirmarCambio}
+                >
+                  {loadingCambio ? 'Procesando...' : 'Confirmar cambio'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

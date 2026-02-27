@@ -22,7 +22,7 @@ export default function Sidebar({ onLogout }) {
 
       <nav className="sidebar-nav">
         <button
-          className={`sidebar-link sidebar-expand${isRegistros ? ' active' : ''}`}
+          className={`sidebar-link sidebar-expand`}
           onClick={() => setRegistrosOpen(o => !o)}
         >
           <span className="sidebar-icon">⊟</span>
@@ -36,7 +36,7 @@ export default function Sidebar({ onLogout }) {
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={({ isActive }) => `sidebar-link sidebar-sublink${isActive ? ' active' : ''}`}
+                className="sidebar-link sidebar-sublink"
               >
                 <span>{item.label}</span>
               </NavLink>

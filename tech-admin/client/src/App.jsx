@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Sidebar from './components/Sidebar'
 import RegistroAdmin from './pages/RegistroAdmin'
 import RegistroDocente from './pages/RegistroDocente'
+import RegistroAlumno from './pages/RegistroAlumno'
 
 function Layout({ children, onLogout }) {
   return (
@@ -53,7 +54,7 @@ function AuthenticatedApp({ onLogout }) {
         <Route path="/" element={<WelcomeCube />} />
         <Route path="/registros/administrador" element={<RegistroAdmin />} />
         <Route path="/registros/docente" element={<RegistroDocente />} />
-        <Route path="/registros/alumno" element={<Placeholder title="Registros — Alumno" />} />
+        <Route path="/registros/alumno" element={<RegistroAlumno />} />
         <Route path="/registros/apoderado" element={<Placeholder title="Registros — Apoderado" />} />
         <Route path="*" element={<WelcomeCube />} />
       </Routes>

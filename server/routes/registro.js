@@ -973,19 +973,35 @@ router.post('/apoderado', async (req, res) => {
 
         const usuarioId = resultUsuario.insertId;
 
-        // Crear apoderado en tb_apoderados
-        const [resultApoderado] = await connection.query(`
-            INSERT INTO tb_apoderados (usuario_id, rut, nombres, apellidos, email, telefono, activo)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
-        `, [usuarioId, rutApoderado, primerPreregistro.nombres_apoderado, primerPreregistro.apellidos_apoderado, email, primerPreregistro.telefono_apoderado]);
+        // Buscar si el apoderado ya existe en tb_apoderados (pudo ser creado por matrícula sin usuario)
+        const [apoderadoExistente] = await connection.query(
+            'SELECT id FROM tb_apoderados WHERE UPPER(rut) = UPPER(?)',
+            [rutApoderado]
+        );
 
-        const apoderadoId = resultApoderado.insertId;
+        let apoderadoId;
+        if (apoderadoExistente.length > 0) {
+            // Ya existe: asignar usuario_id y actualizar datos
+            apoderadoId = apoderadoExistente[0].id;
+            await connection.query(`
+                UPDATE tb_apoderados SET usuario_id = ?, email = ?, activo = 1
+                WHERE id = ?
+            `, [usuarioId, email, apoderadoId]);
+        } else {
+            // No existe: crear nuevo
+            const [resultApoderado] = await connection.query(`
+                INSERT INTO tb_apoderados (usuario_id, rut, nombres, apellidos, email, telefono, activo)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+            `, [usuarioId, rutApoderado, primerPreregistro.nombres_apoderado, primerPreregistro.apellidos_apoderado, email, primerPreregistro.telefono_apoderado]);
+            apoderadoId = resultApoderado.insertId;
+        }
 
-        // Asociar al establecimiento
+        // Asociar al establecimiento (ON DUPLICATE para no duplicar si ya existe)
         await connection.query(`
             INSERT INTO tb_apoderado_establecimiento
             (apoderado_id, establecimiento_id, fecha_registro, activo)
             VALUES (?, ?, CURDATE(), 1)
+            ON DUPLICATE KEY UPDATE activo = 1
         `, [apoderadoId, primerPreregistro.establecimiento_id]);
 
         // Procesar cada alumno - Los alumnos YA deben existir en tb_alumnos
@@ -1012,11 +1028,12 @@ router.post('/apoderado', async (req, res) => {
 
                 const alumnoId = alumnoExistente[0].id;
 
-                // Crear relación apoderado-alumno
+                // Crear relación apoderado-alumno (ON DUPLICATE para no duplicar si ya existe por matrícula)
                 await connection.query(`
                     INSERT INTO tb_apoderado_alumno
                     (apoderado_id, alumno_id, parentesco, es_apoderado_titular, activo)
                     VALUES (?, ?, ?, ?, 1)
+                    ON DUPLICATE KEY UPDATE activo = 1
                 `, [apoderadoId, alumnoId, preregistroAlumno.parentesco || 'padre', preregistroAlumno.es_apoderado_titular || 1]);
 
                 // Marcar pre-registro como usado
