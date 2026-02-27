@@ -11,7 +11,7 @@ const REGISTRO_ITEMS = [
 export default function Sidebar({ onLogout }) {
   const location = useLocation()
   const isRegistros = location.pathname.startsWith('/registros')
-  const [registrosOpen, setRegistrosOpen] = useState(isRegistros)
+  const [registrosOpen, setRegistrosOpen] = useState(false)
 
   return (
     <aside className="tech-sidebar">

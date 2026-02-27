@@ -354,4 +354,341 @@ router.post('/registro/docente-tech', async (req, res) => {
   }
 });
 
+// GET /api/registro/docente-by-rut?rut=... — Buscar docente activo por RUT con establecimiento, asignaturas y cursos
+router.get('/registro/docente-by-rut', async (req, res) => {
+  const { rut } = req.query;
+  if (!rut) return res.status(400).json({ error: 'RUT es requerido' });
+
+  try {
+    // Datos del docente + establecimiento
+    const [rows] = await pool.query(`
+      SELECT d.id as docente_id, d.usuario_id, d.rut, d.nombres, d.apellidos, d.email, d.telefono,
+             u.email as usuario_email,
+             e.id as establecimiento_id, e.nombre as establecimiento_nombre,
+             de.cargo, de.horas_contrato
+      FROM tb_docentes d
+      JOIN tb_usuarios u ON d.usuario_id = u.id
+      JOIN tb_docente_establecimiento de ON d.id = de.docente_id AND de.activo = 1
+      JOIN tb_establecimientos e ON de.establecimiento_id = e.id
+      WHERE UPPER(REPLACE(REPLACE(d.rut, '.', ''), '-', '')) = UPPER(REPLACE(REPLACE(?, '.', ''), '-', ''))
+        AND d.activo = 1
+        AND u.activo = 1
+    `, [rut]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'No se encontró un docente activo con ese RUT' });
+    }
+
+    const r = rows[0];
+
+    // Asignaturas del docente (tb_docente_asignatura)
+    const [asignaturas] = await pool.query(`
+      SELECT da.asignatura_id, a.nombre
+      FROM tb_docente_asignatura da
+      JOIN tb_asignaturas a ON da.asignatura_id = a.id
+      WHERE da.docente_id = ? AND da.activo = 1 AND a.activo = 1
+      ORDER BY a.nombre
+    `, [r.docente_id]);
+
+    // Cursos asignados (tb_asignaciones) con nombre de asignatura
+    const [cursos] = await pool.query(`
+      SELECT asig.id as asignacion_id, c.id as curso_id, c.nombre as curso_nombre,
+             asig.asignatura_id, a.nombre as asignatura_nombre
+      FROM tb_asignaciones asig
+      JOIN tb_cursos c ON asig.curso_id = c.id
+      JOIN tb_asignaturas a ON asig.asignatura_id = a.id
+      WHERE asig.docente_id = ? AND asig.activo = 1 AND c.activo = 1
+      ORDER BY c.nombre, a.nombre
+    `, [r.docente_id]);
+
+    res.json({
+      docente: {
+        id: r.docente_id,
+        usuario_id: r.usuario_id,
+        rut: r.rut,
+        nombres: r.nombres,
+        apellidos: r.apellidos,
+        email: r.usuario_email,
+        telefono: r.telefono,
+        cargo: r.cargo,
+        horas_contrato: r.horas_contrato
+      },
+      establecimiento: {
+        id: r.establecimiento_id,
+        nombre: r.establecimiento_nombre
+      },
+      asignaturas: asignaturas.map(a => a.asignatura_id),
+      asignaturas_detalle: asignaturas,
+      cursos
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/registro/docente/:id — Actualizar datos personales del docente
+router.put('/registro/docente/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nombres, apellidos, email, telefono } = req.body;
+
+  if (!nombres || !apellidos || !email) {
+    return res.status(400).json({ error: 'Nombres, apellidos y email son requeridos' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [docente] = await connection.query('SELECT usuario_id FROM tb_docentes WHERE id = ? AND activo = 1', [id]);
+    if (docente.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Docente no encontrado' });
+    }
+
+    // Guardar datos anteriores para log
+    const [antes] = await connection.query(
+      'SELECT d.nombres, d.apellidos, d.telefono, u.email FROM tb_docentes d JOIN tb_usuarios u ON d.usuario_id = u.id WHERE d.id = ?', [id]
+    );
+
+    await connection.query(
+      'UPDATE tb_docentes SET nombres = ?, apellidos = ?, telefono = ? WHERE id = ?',
+      [nombres, apellidos, telefono || null, id]
+    );
+
+    await connection.query(
+      'UPDATE tb_usuarios SET email = ? WHERE id = ?',
+      [email, docente[0].usuario_id]
+    );
+
+    // Log
+    await connection.query(
+      `INSERT INTO tb_log_actividades
+       (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+        entidad_tipo, entidad_id, datos_anteriores, datos_nuevos)
+       VALUES (NULL, 'sistema', 'TechPanel', 'editar', 'docentes', ?, 'docente', ?, ?, ?)`,
+      [
+        `Docente actualizado desde TechPanel: ${nombres} ${apellidos}`,
+        id,
+        JSON.stringify(antes[0] || {}),
+        JSON.stringify({ nombres, apellidos, email, telefono })
+      ]
+    );
+
+    await connection.commit();
+    res.json({ ok: true, message: 'Datos del docente actualizados' });
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// PUT /api/registro/docente-asignaturas/:id — Actualizar asignaturas del docente
+router.put('/registro/docente-asignaturas/:id', async (req, res) => {
+  const { id } = req.params;
+  const { asignaturas = [] } = req.body;
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [docente] = await connection.query('SELECT id FROM tb_docentes WHERE id = ? AND activo = 1', [id]);
+    if (docente.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Docente no encontrado' });
+    }
+
+    // Obtener asignaturas actuales
+    const [actuales] = await connection.query(
+      'SELECT asignatura_id FROM tb_docente_asignatura WHERE docente_id = ? AND activo = 1', [id]
+    );
+    const idsActuales = actuales.map(a => a.asignatura_id);
+
+    // Desactivar las que se quitaron
+    const quitar = idsActuales.filter(a => !asignaturas.includes(a));
+    for (const asigId of quitar) {
+      await connection.query(
+        'UPDATE tb_docente_asignatura SET activo = 0 WHERE docente_id = ? AND asignatura_id = ?',
+        [id, asigId]
+      );
+    }
+
+    // Agregar las nuevas
+    const agregar = asignaturas.filter(a => !idsActuales.includes(a));
+    for (const asigId of agregar) {
+      // Verificar si ya existe inactivo
+      const [existe] = await connection.query(
+        'SELECT id FROM tb_docente_asignatura WHERE docente_id = ? AND asignatura_id = ?', [id, asigId]
+      );
+      if (existe.length > 0) {
+        await connection.query(
+          'UPDATE tb_docente_asignatura SET activo = 1 WHERE docente_id = ? AND asignatura_id = ?',
+          [id, asigId]
+        );
+      } else {
+        await connection.query(
+          'INSERT INTO tb_docente_asignatura (docente_id, asignatura_id, activo) VALUES (?, ?, 1)',
+          [id, asigId]
+        );
+      }
+    }
+
+    // Log
+    await connection.query(
+      `INSERT INTO tb_log_actividades
+       (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+        entidad_tipo, entidad_id, datos_anteriores, datos_nuevos)
+       VALUES (NULL, 'sistema', 'TechPanel', 'editar', 'docentes', ?, 'docente', ?, ?, ?)`,
+      [
+        `Asignaturas del docente actualizadas desde TechPanel`,
+        id,
+        JSON.stringify({ asignaturas: idsActuales }),
+        JSON.stringify({ asignaturas, agregadas: agregar, quitadas: quitar })
+      ]
+    );
+
+    await connection.commit();
+    res.json({ ok: true, message: 'Asignaturas actualizadas correctamente' });
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// GET /api/registro/cursos/:establecimientoId — Cursos de un establecimiento
+router.get('/registro/cursos/:establecimientoId', async (req, res) => {
+  const { establecimientoId } = req.params;
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, nombre FROM tb_cursos WHERE establecimiento_id = ? AND activo = 1 ORDER BY nombre',
+      [establecimientoId]
+    );
+    res.json({ cursos: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/registro/docente-asignacion — Crear asignaciones (curso + asignaturas)
+router.post('/registro/docente-asignacion', async (req, res) => {
+  const { docente_id, establecimiento_id, curso_id, asignaturas = [] } = req.body;
+
+  if (!docente_id || !establecimiento_id || !curso_id || asignaturas.length === 0) {
+    return res.status(400).json({ error: 'Docente, establecimiento, curso y al menos una asignatura son requeridos' });
+  }
+
+  const anio = new Date().getFullYear();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    let creadas = 0;
+    for (const asignaturaId of asignaturas) {
+      // Verificar si ya existe (activa o inactiva)
+      const [existe] = await connection.query(
+        'SELECT id, activo FROM tb_asignaciones WHERE docente_id = ? AND curso_id = ? AND asignatura_id = ? AND anio_academico = ?',
+        [docente_id, curso_id, asignaturaId, anio]
+      );
+
+      if (existe.length > 0) {
+        if (existe[0].activo === 0) {
+          // Reactivar
+          await connection.query('UPDATE tb_asignaciones SET activo = 1 WHERE id = ?', [existe[0].id]);
+          creadas++;
+        }
+        // Si ya está activa, skip silenciosamente
+      } else {
+        await connection.query(
+          'INSERT INTO tb_asignaciones (establecimiento_id, docente_id, curso_id, asignatura_id, anio_academico, activo) VALUES (?, ?, ?, ?, ?, 1)',
+          [establecimiento_id, docente_id, curso_id, asignaturaId, anio]
+        );
+        creadas++;
+      }
+    }
+
+    await connection.commit();
+    res.json({ ok: true, message: `${creadas} asignación${creadas !== 1 ? 'es' : ''} creada${creadas !== 1 ? 's' : ''}` });
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// DELETE /api/registro/docente-asignacion/:id — Eliminar asignación (soft delete)
+router.delete('/registro/docente-asignacion/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.query(
+      'UPDATE tb_asignaciones SET activo = 0 WHERE id = ? AND activo = 1',
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Asignación no encontrada' });
+    }
+    res.json({ ok: true, message: 'Asignación eliminada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/registro/docente/:id — Eliminar docente (soft delete completo)
+router.delete('/registro/docente/:id', async (req, res) => {
+  const { id } = req.params;
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Verificar que existe
+    const [docente] = await connection.query(
+      'SELECT d.id, d.usuario_id, d.nombres, d.apellidos FROM tb_docentes d WHERE d.id = ? AND d.activo = 1', [id]
+    );
+    if (docente.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Docente no encontrado' });
+    }
+
+    // Desactivar docente
+    await connection.query('UPDATE tb_docentes SET activo = 0 WHERE id = ?', [id]);
+
+    // Desactivar usuario (no podrá hacer login)
+    await connection.query('UPDATE tb_usuarios SET activo = 0 WHERE id = ?', [docente[0].usuario_id]);
+
+    // Desactivar relación con establecimiento
+    await connection.query('UPDATE tb_docente_establecimiento SET activo = 0 WHERE docente_id = ?', [id]);
+
+    // Desactivar asignaturas del docente
+    await connection.query('UPDATE tb_docente_asignatura SET activo = 0 WHERE docente_id = ?', [id]);
+
+    // Desactivar todas las asignaciones a cursos
+    await connection.query('UPDATE tb_asignaciones SET activo = 0 WHERE docente_id = ?', [id]);
+
+    // Log
+    await connection.query(
+      `INSERT INTO tb_log_actividades
+       (usuario_id, tipo_usuario, nombre_usuario, accion, modulo, descripcion,
+        entidad_tipo, entidad_id, datos_anteriores, datos_nuevos)
+       VALUES (NULL, 'sistema', 'TechPanel', 'eliminar', 'docentes', ?, 'docente', ?, ?, NULL)`,
+      [
+        `Docente eliminado desde TechPanel: ${docente[0].nombres} ${docente[0].apellidos}`,
+        id,
+        JSON.stringify({ id, nombres: docente[0].nombres, apellidos: docente[0].apellidos })
+      ]
+    );
+
+    await connection.commit();
+    res.json({ ok: true, message: 'Docente eliminado correctamente' });
+  } catch (err) {
+    await connection.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
 module.exports = router;
